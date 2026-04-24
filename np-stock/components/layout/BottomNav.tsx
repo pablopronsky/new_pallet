@@ -8,6 +8,7 @@ const items = [
   { href: "/dashboard", label: "Inicio" },
   { href: "/dashboard/stock", label: "Stock" },
   { href: "/dashboard/ventas", label: "Ventas" },
+  { href: "/dashboard/auditorias", label: "Auditorías" },
   { href: "/dashboard/historial", label: "Historial" },
 ];
 

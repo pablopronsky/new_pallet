@@ -56,6 +56,9 @@ export interface Audit {
   createdBy: string;
   cerrada: boolean;
   notas?: string;
+  resuelta?: boolean;
+  resolvedAt?: Timestamp;
+  resolvedBy?: string;
 }
 
 export interface AppConfig {
