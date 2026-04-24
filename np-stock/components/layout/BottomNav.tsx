@@ -1,0 +1,44 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/cn";
+
+const items = [
+  { href: "/dashboard", label: "Inicio" },
+  { href: "/dashboard/stock", label: "Stock" },
+  { href: "/dashboard/ventas", label: "Ventas" },
+  { href: "/dashboard/historial", label: "Historial" },
+];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/dashboard") return pathname === "/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function BottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface md:hidden">
+      <ul className="flex">
+        {items.map((item) => {
+          const active = isActive(pathname, item.href);
+          return (
+            <li key={item.href} className="flex-1">
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex h-14 items-center justify-center text-xs font-medium transition-colors",
+                  active ? "text-primary-light" : "text-text-secondary",
+                )}
+              >
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}

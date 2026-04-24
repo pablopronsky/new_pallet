@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userRole() == 'admin';
+    }
+
+    function isControlador() {
+      return isSignedIn() && userRole() == 'controlador';
+    }
+
+    function isAllCovering() {
+      return isSignedIn() && userRole() == 'allcovering';
+    }
+
+    // Users: each user can read their own profile. Admins can read/write all.
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Products: readable by any signed-in user, only admin writes.
+    match /productos/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Distribution: readable by signed-in; admin + controlador may write
+    // (controlador typically decreases their branch on sale; admin re-balances).
+    match /distribucion/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isControlador();
+    }
+
+    // Sales: signed-in can read; admin or controlador can create.
+    // Allcovering is read-only.
+    match /ventas/{saleId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isControlador();
+      allow update, delete: if isAdmin();
+    }
+
+    // Audits: signed-in can read; admin or controlador create; only admin closes/deletes.
+    match /auditorias/{auditId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isControlador();
+      allow update, delete: if isAdmin();
+    }
+
+    // App config: readable by all signed-in, writable only by admin.
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Fallback: deny anything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
