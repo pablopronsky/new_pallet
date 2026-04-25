@@ -68,26 +68,37 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Products: readable by any signed-in user, only admin writes.
+    // Products: readable by app roles, only admin writes.
+    // Note: Firestore cannot hide individual fields from a readable document.
+    // For a stricter provider portal, expose supplier-safe aggregate/product
+    // documents or a Cloud Function instead of raw productos.
     match /productos/{productId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin()
+        || isControlador()
+        || isVendedor()
+        || isAllCovering();
       allow write: if isAdmin();
     }
 
-    // Distribution: readable by signed-in; admin + controlador may write
+    // Distribution: readable by app roles; admin + controlador may write
     // (controlador typically decreases their branch on sale; admin re-balances).
     // Vendedores may only decrement their assigned branch during sale creation.
     // This is an MVP client-side transaction; a Cloud Function/server action
     // should replace client-side stock mutation for stronger sale/update coupling.
     match /distribucion/{productId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin()
+        || isControlador()
+        || isVendedor()
+        || isAllCovering();
       allow write: if isAdmin() || isControlador();
       allow update: if isVendedorDistributionSaleUpdate();
     }
 
     // Sales: signed-in can read; admin or controlador can create.
     // Vendedores can only create sales for their assigned branch.
-    // Allcovering is read-only.
+    // Allcovering is read-only. This MVP computes provider totals client-side
+    // from raw ventas; replace with supplier-safe aggregate documents or a
+    // Cloud Function before exposing the portal beyond trusted supplier access.
     match /ventas/{saleId} {
       allow read: if isAdmin()
         || isControlador()
@@ -100,16 +111,16 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Audits: signed-in can read; admin or controlador create; only admin closes/deletes.
+    // Audits: internal only. All Covering cannot read audit data.
     match /auditorias/{auditId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isControlador();
       allow create: if isAdmin() || isControlador();
       allow update, delete: if isAdmin();
     }
 
-    // App config: readable by all signed-in, writable only by admin.
+    // App config: internal only. All Covering cannot read or edit config.
     match /config/{docId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isControlador() || isVendedor();
       allow write: if isAdmin();
     }
 

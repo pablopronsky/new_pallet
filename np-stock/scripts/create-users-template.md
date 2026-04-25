@@ -24,6 +24,7 @@ The script requires:
 - `QUILMES_PASSWORD`
 - `GONNET_PASSWORD`
 - `LAPLATA_PASSWORD`
+- `ALLCOVERING_PASSWORD`
 
 ### Windows Git Bash
 
@@ -33,6 +34,7 @@ export ADMIN_PASSWORD="ninguna"
 export QUILMES_PASSWORD="quilmes123"
 export GONNET_PASSWORD="gonnet123"
 export LAPLATA_PASSWORD="laplata123"
+export ALLCOVERING_PASSWORD="allcovering123"
 npm run setup:users
 ```
 
@@ -44,6 +46,7 @@ $env:ADMIN_PASSWORD="ninguna"
 $env:QUILMES_PASSWORD="quilmes123"
 $env:GONNET_PASSWORD="gonnet123"
 $env:LAPLATA_PASSWORD="laplata123"
+$env:ALLCOVERING_PASSWORD="allcovering123"
 npm run setup:users
 ```
 
@@ -55,6 +58,7 @@ npm run setup:users
 | quilmes@np.com | vendedor | quilmes |
 | gonnet@np.com | vendedor | gonnet |
 | laplata@np.com | vendedor | laplata |
+| allcovering@np.com | allcovering | |
 
 For every account, the Firestore document includes `uid`, `email`, `nombre`,
 `role`, `activo`, and `sucursalAsignada` when applicable.

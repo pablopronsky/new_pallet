@@ -14,6 +14,7 @@ interface NavItem {
 const itemsByRole: Record<Role, NavItem[]> = {
   admin: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/proveedor", label: "All Covering" },
     { href: "/dashboard/stock", label: "Stock" },
     { href: "/dashboard/ventas", label: "Ventas" },
     { href: "/dashboard/historial", label: "Historial" },
@@ -33,7 +34,10 @@ const itemsByRole: Record<Role, NavItem[]> = {
     { href: "/dashboard/ventas", label: "Ventas" },
     { href: "/dashboard/historial", label: "Historial" },
   ],
-  allcovering: [{ href: "/dashboard", label: "Dashboard" }],
+  allcovering: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/proveedor", label: "Proveedor" },
+  ],
 };
 
 const fallbackItems: NavItem[] = [{ href: "/dashboard", label: "Dashboard" }];

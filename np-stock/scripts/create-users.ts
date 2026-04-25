@@ -25,6 +25,7 @@ const requiredEnvVars = [
   "QUILMES_PASSWORD",
   "GONNET_PASSWORD",
   "LAPLATA_PASSWORD",
+  "ALLCOVERING_PASSWORD",
 ] as const;
 
 type RequiredEnvVar = (typeof requiredEnvVars)[number];
@@ -65,6 +66,12 @@ const users: UserSeed[] = [
     nombre: "Vendedor La Plata",
     role: "vendedor",
     sucursalAsignada: "laplata",
+  },
+  {
+    email: "allcovering@np.com",
+    passwordEnv: "ALLCOVERING_PASSWORD",
+    nombre: "All Covering",
+    role: "allcovering",
   },
 ];
 
