@@ -14,7 +14,7 @@ export default function VentasPage() {
       </div>
 
       <div className="mt-6">
-        <RoleGuard allowedRoles={["admin", "controlador"]}>
+        <RoleGuard allowedRoles={["admin", "controlador", "vendedor"]}>
           <SalesForm />
         </RoleGuard>
       </div>

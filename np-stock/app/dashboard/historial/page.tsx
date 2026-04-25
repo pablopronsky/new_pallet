@@ -61,11 +61,17 @@ function parseFilters(state: FiltersState): SalesHistoryFilters {
 }
 
 function HistoryContent() {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const isAdmin = role === "admin";
+  const vendedorBranch =
+    role === "vendedor" ? profile?.sucursalAsignada : undefined;
 
   const [filters, setFilters] = useState<FiltersState>(initialFilters);
-  const parsed = useMemo(() => parseFilters(filters), [filters]);
+  const parsed = useMemo(() => {
+    const next = parseFilters(filters);
+    if (vendedorBranch) next.sucursal = vendedorBranch;
+    return next;
+  }, [filters, vendedorBranch]);
 
   const { products, loading: productsLoading } = useProducts({ activeOnly: false });
   const { sales, loading: salesLoading, error } = useSalesHistory(parsed);
@@ -211,6 +217,16 @@ function HistoryContent() {
     [],
   );
 
+  if (role === "vendedor" && !vendedorBranch) {
+    return (
+      <Card>
+        <p className="text-sm text-text-secondary">
+          Tu usuario no tiene una sucursal asignada.
+        </p>
+      </Card>
+    );
+  }
+
   return (
     <>
       <Card>
@@ -233,9 +249,15 @@ function HistoryContent() {
           <Select
             label="Sucursal"
             name="sucursal"
-            value={filters.sucursal}
+            value={vendedorBranch ?? filters.sucursal}
             onChange={(e) => update("sucursal", e.target.value)}
             options={sucursalOptions}
+            disabled={Boolean(vendedorBranch)}
+            hint={
+              vendedorBranch
+                ? "Solo se muestra el historial de tu sucursal."
+                : undefined
+            }
           />
           <Input
             label="Desde"
@@ -295,7 +317,7 @@ export default function HistorialPage() {
       </div>
 
       <div className="mt-6">
-        <RoleGuard allowedRoles={["admin", "controlador"]}>
+        <RoleGuard allowedRoles={["admin", "controlador", "vendedor"]}>
           <HistoryContent />
         </RoleGuard>
       </div>

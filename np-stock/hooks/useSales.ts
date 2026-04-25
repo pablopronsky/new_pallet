@@ -78,7 +78,7 @@ export interface UseSalesResult {
 }
 
 export function useSales(): UseSalesResult {
-  const { user } = useAuth();
+  const { user, role, profile } = useAuth();
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -89,6 +89,23 @@ export function useSales(): UseSalesResult {
         throw new Error("cajas must be a positive integer");
       }
 
+      const vendedorBranch =
+        role === "vendedor" ? profile?.sucursalAsignada : undefined;
+
+      if (role === "vendedor") {
+        if (!profile) {
+          throw new Error("User profile is required");
+        }
+        if (!vendedorBranch) {
+          throw new Error("Sucursal asignada is required");
+        }
+        if (input.sucursal !== vendedorBranch) {
+          throw new Error("No podés vender stock de otra sucursal");
+        }
+      }
+
+      const saleSucursal = vendedorBranch ?? input.sucursal;
+
       setSubmitting(true);
       setError(null);
 
@@ -98,9 +115,9 @@ export function useSales(): UseSalesResult {
         const newSaleRef = doc(salesCollection());
 
         // distribucion.cajasPorSucursal is live remaining stock per branch.
-        // This transaction subtracts `cajas` from the selected branch and writes
-        // the sale as a historical record. Readers must not subtract sales from
-        // distribucion again — that would double-count.
+        // Every sale subtracts from the effective branch and writes the sale as
+        // a historical record. Readers must not subtract sales from distribucion
+        // again, or stock would be double-counted.
         await runTransaction(db, async (tx) => {
           const distSnap = await tx.get(distRef);
           if (!distSnap.exists()) {
@@ -111,7 +128,7 @@ export function useSales(): UseSalesResult {
 
           const distribution = distSnap.data();
           const branchBoxes =
-            distribution.cajasPorSucursal[input.sucursal] ?? 0;
+            distribution.cajasPorSucursal[saleSucursal] ?? 0;
 
           // Validate against the target branch's current stock only.
           validateStockAvailability({
@@ -123,7 +140,7 @@ export function useSales(): UseSalesResult {
           const updatedCajasPorSucursal: ProductDistribution["cajasPorSucursal"] =
             {
               ...distribution.cajasPorSucursal,
-              [input.sucursal]: branchBoxes - input.cajas,
+              [saleSucursal]: branchBoxes - input.cajas,
             };
 
           tx.update(distRef, {
@@ -133,7 +150,7 @@ export function useSales(): UseSalesResult {
 
           const salePayload: Omit<Sale, "id"> = {
             productId: input.productId,
-            sucursal: input.sucursal,
+            sucursal: saleSucursal,
             cajas: input.cajas,
             montoUSD: amounts.montoUSD,
             montoARS: amounts.montoARS,
@@ -164,7 +181,7 @@ export function useSales(): UseSalesResult {
         setSubmitting(false);
       }
     },
-    [user],
+    [profile, role, user],
   );
 
   return { createSale, submitting, error };

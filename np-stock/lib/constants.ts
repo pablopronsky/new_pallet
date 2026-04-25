@@ -8,11 +8,12 @@ export const BRANCH_LABELS: Record<Branch, string> = {
   quilmes: "Quilmes",
 };
 
-export const ROLES: Role[] = ["admin", "controlador", "allcovering"];
+export const ROLES: Role[] = ["admin", "controlador", "vendedor", "allcovering"];
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "Administrador",
   controlador: "Controlador",
+  vendedor: "Vendedor",
   allcovering: "All Covering",
 };
 

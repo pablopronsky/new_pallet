@@ -2,25 +2,41 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/cn";
+import type { Role } from "@/types/domain";
 
 interface NavItem {
   href: string;
   label: string;
 }
 
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/dashboard/stock", label: "Stock" },
-  { href: "/dashboard/ingresos", label: "Ingresos" },
-  { href: "/dashboard/ventas", label: "Ventas" },
-  { href: "/dashboard/bajas", label: "Bajas" },
-  { href: "/dashboard/historial", label: "Historial" },
-  { href: "/dashboard/auditorias", label: "Auditorías" },
-  { href: "/dashboard/configuracion", label: "Configuración" },
-  { href: "/dashboard/usuarios", label: "Usuarios" },
-  { href: "/dashboard/exportar", label: "Exportar" },
-];
+const navItemsByRole: Record<Role, NavItem[]> = {
+  admin: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/stock", label: "Stock" },
+    { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/historial", label: "Historial" },
+    { href: "/dashboard/auditorias", label: "Auditorías" },
+    { href: "/dashboard/configuracion", label: "Configuración" },
+    { href: "/dashboard/usuarios", label: "Usuarios" },
+    { href: "/dashboard/exportar", label: "Exportar" },
+  ],
+  controlador: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/auditorias", label: "Auditorías" },
+    { href: "/dashboard/historial", label: "Historial" },
+  ],
+  vendedor: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/historial", label: "Historial" },
+  ],
+  allcovering: [{ href: "/dashboard", label: "Dashboard" }],
+};
+
+const fallbackNavItems: NavItem[] = [{ href: "/dashboard", label: "Dashboard" }];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -29,6 +45,8 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { role } = useAuth();
+  const navItems = role ? navItemsByRole[role] : fallbackNavItems;
 
   return (
     <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-20 md:flex md:w-64 md:flex-col md:border-r md:border-border md:bg-surface">

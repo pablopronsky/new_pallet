@@ -68,6 +68,18 @@ export default function DashboardPage() {
           </Card>
         </RoleGuard>
 
+        <RoleGuard allowedRoles={["vendedor"]} fallback={null}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Panel Vendedor</CardTitle>
+              <Badge tone="primary">vendedor</Badge>
+            </CardHeader>
+            <p className="text-sm text-text-secondary">
+              Registro de ventas y consulta de historial de tu sucursal.
+            </p>
+          </Card>
+        </RoleGuard>
+
         <RoleGuard allowedRoles={["allcovering"]} fallback={null}>
           <Card>
             <CardHeader>

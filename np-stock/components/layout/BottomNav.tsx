@@ -2,15 +2,41 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/cn";
+import type { Role } from "@/types/domain";
 
-const items = [
-  { href: "/dashboard", label: "Inicio" },
-  { href: "/dashboard/stock", label: "Stock" },
-  { href: "/dashboard/ventas", label: "Ventas" },
-  { href: "/dashboard/auditorias", label: "Auditorías" },
-  { href: "/dashboard/historial", label: "Historial" },
-];
+interface NavItem {
+  href: string;
+  label: string;
+}
+
+const itemsByRole: Record<Role, NavItem[]> = {
+  admin: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/stock", label: "Stock" },
+    { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/historial", label: "Historial" },
+    { href: "/dashboard/auditorias", label: "Auditorías" },
+    { href: "/dashboard/configuracion", label: "Config." },
+    { href: "/dashboard/usuarios", label: "Usuarios" },
+    { href: "/dashboard/exportar", label: "Exportar" },
+  ],
+  controlador: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/auditorias", label: "Auditorías" },
+    { href: "/dashboard/historial", label: "Historial" },
+  ],
+  vendedor: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/historial", label: "Historial" },
+  ],
+  allcovering: [{ href: "/dashboard", label: "Dashboard" }],
+};
+
+const fallbackItems: NavItem[] = [{ href: "/dashboard", label: "Dashboard" }];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -19,6 +45,8 @@ function isActive(pathname: string, href: string): boolean {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { role } = useAuth();
+  const items = role ? itemsByRole[role] : fallbackItems;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface md:hidden">
@@ -30,7 +58,7 @@ export function BottomNav() {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex h-14 items-center justify-center text-xs font-medium transition-colors",
+                  "flex h-14 items-center justify-center px-1 text-center text-xs font-medium transition-colors",
                   active ? "text-primary-light" : "text-text-secondary",
                 )}
               >

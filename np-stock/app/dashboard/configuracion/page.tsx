@@ -117,8 +117,13 @@ function ExchangeRateSection() {
 // Products section
 // ---------------------------------------------------------------------------
 
-function ProductsSection() {
-  const { products, loading, error } = useProducts({ activeOnly: false });
+interface ProductsSectionProps {
+  products: Product[];
+  loading: boolean;
+  error: Error | null;
+}
+
+function ProductsSection({ products, loading, error }: ProductsSectionProps) {
   const { updateProduct, saving, error: updateError } = useUpdateProduct();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [success, setSuccess] = useState(false);
@@ -282,10 +287,15 @@ function zeroedBranches(): BranchBoxes {
   );
 }
 
-function DistributionSection() {
-  const { products, loading: productsLoading } = useProducts({
-    activeOnly: false,
-  });
+interface DistributionSectionProps {
+  products: Product[];
+  productsLoading: boolean;
+}
+
+function DistributionSection({
+  products,
+  productsLoading,
+}: DistributionSectionProps) {
   const {
     distributions,
     byProductId,
@@ -460,11 +470,24 @@ function DistributionSection() {
 // ---------------------------------------------------------------------------
 
 function ConfigContent() {
+  const {
+    products,
+    loading: productsLoading,
+    error: productsError,
+  } = useProducts({ activeOnly: false });
+
   return (
     <div className="flex flex-col gap-8">
       <ExchangeRateSection />
-      <ProductsSection />
-      <DistributionSection />
+      <ProductsSection
+        products={products}
+        loading={productsLoading}
+        error={productsError}
+      />
+      <DistributionSection
+        products={products}
+        productsLoading={productsLoading}
+      />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { BranchSelector } from "./BranchSelector";
 
 export function Topbar() {
-  const { user, role, profileLoading, logout } = useAuth();
+  const { user, profile, role, profileLoading, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/80 px-4 backdrop-blur md:px-8">
@@ -20,6 +20,8 @@ export function Topbar() {
           <Badge tone="neutral">…</Badge>
         ) : role ? (
           <Badge tone="primary">{ROLE_LABELS[role]}</Badge>
+        ) : user && !profile ? (
+          <Badge tone="warning">Sin perfil</Badge>
         ) : (
           <Badge tone="warning">Sin rol</Badge>
         )}

@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import { useSales, type CreateSaleInput } from "@/hooks/useSales";
 import { StockAvailabilityError } from "@/lib/calculations";
@@ -23,11 +24,11 @@ interface FormState {
   fecha: string;
 }
 
-function initialState(): FormState {
+function initialState(sucursal: Branch | "" = ""): FormState {
   const today = new Date().toISOString().slice(0, 10);
   return {
     productId: "",
-    sucursal: "",
+    sucursal,
     cajas: "",
     moneda: "USD",
     monto: "",
@@ -61,12 +62,22 @@ function isValidForm(form: FormState): boolean {
 
 export function SalesForm() {
   // useProducts() filters activo === true by default
+  const { role, profile } = useAuth();
   const { products, loading: productsLoading } = useProducts();
   const { createSale, submitting } = useSales();
+  const vendedorBranch =
+    role === "vendedor" ? profile?.sucursalAsignada : undefined;
 
-  const [form, setForm] = useState<FormState>(initialState);
+  const [form, setForm] = useState<FormState>(() =>
+    initialState(vendedorBranch ?? ""),
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!vendedorBranch) return;
+    setForm((f) => ({ ...f, sucursal: vendedorBranch }));
+  }, [vendedorBranch]);
 
   const productOptions = useMemo(() => {
     if (productsLoading) {
@@ -93,7 +104,11 @@ export function SalesForm() {
   };
 
   const formValid = isValidForm(form);
-  const canSubmit = formValid && !submitting && !productsLoading;
+  const canSubmit =
+    formValid &&
+    !submitting &&
+    !productsLoading &&
+    !(role === "vendedor" && !vendedorBranch);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -109,7 +124,7 @@ export function SalesForm() {
 
     const input: CreateSaleInput = {
       productId: form.productId,
-      sucursal: form.sucursal as Branch,
+      sucursal: vendedorBranch ?? (form.sucursal as Branch),
       cajas,
       tipoCambioUSD,
       fecha,
@@ -118,7 +133,7 @@ export function SalesForm() {
 
     try {
       await createSale(input);
-      setForm(initialState());
+      setForm(initialState(vendedorBranch ?? ""));
       setSuccess("Venta registrada correctamente");
     } catch (err) {
       if (err instanceof StockAvailabilityError) {
@@ -152,6 +167,14 @@ export function SalesForm() {
           value={form.sucursal}
           onChange={(e) => update("sucursal", e.target.value as Branch | "")}
           options={branchOptions}
+          disabled={role === "vendedor"}
+          hint={
+            vendedorBranch
+              ? "Solo podés vender stock de tu sucursal."
+              : role === "vendedor"
+                ? "Tu usuario no tiene una sucursal asignada."
+              : undefined
+          }
           required
         />
 

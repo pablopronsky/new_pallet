@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { distributionCollection } from "@/lib/firestore";
 import type { ProductDistribution } from "@/types/domain";
@@ -32,8 +32,11 @@ export function useDistribution(): UseDistributionResult {
     return () => unsub();
   }, []);
 
-  const byProductId: Record<string, ProductDistribution> = {};
-  for (const d of distributions) byProductId[d.productId] = d;
+  const byProductId = useMemo(() => {
+    const map: Record<string, ProductDistribution> = {};
+    for (const d of distributions) map[d.productId] = d;
+    return map;
+  }, [distributions]);
 
   return { distributions, byProductId, loading, error };
 }

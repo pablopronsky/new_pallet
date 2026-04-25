@@ -6,15 +6,23 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
+import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import { useDistribution } from "@/hooks/useDistribution";
 import {
   useAudits,
   type CreateAuditItemInput,
+  type UseAuditsResult,
 } from "@/hooks/useAudits";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
 import { formatDateAR } from "@/lib/formatters";
-import type { Audit, AuditItem, Branch, Product } from "@/types/domain";
+import type {
+  Audit,
+  AuditItem,
+  Branch,
+  Product,
+  ProductDistribution,
+} from "@/types/domain";
 
 type CellKey = `${string}:${Branch}`;
 const cellKey = (productId: string, branch: Branch): CellKey =>
@@ -57,13 +65,25 @@ function FeedbackBanner({
 // Audit form
 // ---------------------------------------------------------------------------
 
-function AuditForm() {
-  const { products, loading: productsLoading } = useProducts({
-    activeOnly: true,
-  });
-  const { byProductId, loading: distLoading } = useDistribution();
-  const { createAudit, submitting, error } = useAudits();
+interface AuditFormProps {
+  products: Product[];
+  productsLoading: boolean;
+  byProductId: Record<string, ProductDistribution>;
+  distLoading: boolean;
+  auditState: Pick<
+    UseAuditsResult,
+    "createAudit" | "submitting" | "error"
+  >;
+}
 
+function AuditForm({
+  products,
+  productsLoading,
+  byProductId,
+  distLoading,
+  auditState,
+}: AuditFormProps) {
+  const { createAudit, submitting, error } = auditState;
   const [drafts, setDrafts] = useState<Record<CellKey, CellDraft>>({});
   const [generalNotas, setGeneralNotas] = useState("");
   const [success, setSuccess] = useState(false);
@@ -318,17 +338,16 @@ interface AlertRow {
   key: string;
 }
 
-function AdminAlerts() {
-  const { audits, loading, markAuditResolved, resolvingIds, error } =
-    useAudits();
-  const { products } = useProducts({ activeOnly: false });
+interface AdminAlertsProps {
+  auditState: Pick<
+    UseAuditsResult,
+    "audits" | "loading" | "markAuditResolved" | "resolvingIds" | "error"
+  >;
+  productById: Record<string, Product>;
+}
 
-  const productById = useMemo<Record<string, Product>>(() => {
-    const map: Record<string, Product> = {};
-    for (const p of products) map[p.id] = p;
-    return map;
-  }, [products]);
-
+function AdminAlerts({ auditState, productById }: AdminAlertsProps) {
+  const { audits, loading, markAuditResolved, resolvingIds, error } = auditState;
   const rows: AlertRow[] = useMemo(() => {
     const out: AlertRow[] = [];
     for (const audit of audits) {
@@ -468,6 +487,41 @@ function AdminAlerts() {
 // Page
 // ---------------------------------------------------------------------------
 
+function AuditoriasContent() {
+  const { role } = useAuth();
+  const auditState = useAudits();
+  const { products, loading: productsLoading } = useProducts({
+    activeOnly: role !== "admin",
+  });
+  const { byProductId, loading: distLoading } = useDistribution();
+
+  const activeProducts = useMemo(
+    () => (role === "admin" ? products.filter((p) => p.activo) : products),
+    [products, role],
+  );
+
+  const productById = useMemo<Record<string, Product>>(() => {
+    const map: Record<string, Product> = {};
+    for (const p of products) map[p.id] = p;
+    return map;
+  }, [products]);
+
+  return (
+    <div className="flex flex-col gap-8">
+      <AuditForm
+        products={activeProducts}
+        productsLoading={productsLoading}
+        byProductId={byProductId}
+        distLoading={distLoading}
+        auditState={auditState}
+      />
+      <RoleGuard allowedRoles={["admin"]} fallback={null}>
+        <AdminAlerts auditState={auditState} productById={productById} />
+      </RoleGuard>
+    </div>
+  );
+}
+
 export default function AuditoriasPage() {
   return (
     <>
@@ -480,12 +534,7 @@ export default function AuditoriasPage() {
 
       <div className="mt-6">
         <RoleGuard allowedRoles={["admin", "controlador"]}>
-          <div className="flex flex-col gap-8">
-            <AuditForm />
-            <RoleGuard allowedRoles={["admin"]} fallback={null}>
-              <AdminAlerts />
-            </RoleGuard>
-          </div>
+          <AuditoriasContent />
         </RoleGuard>
       </div>
     </>

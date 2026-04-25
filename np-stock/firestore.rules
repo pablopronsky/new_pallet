@@ -23,6 +23,45 @@ service cloud.firestore {
       return isSignedIn() && userRole() == 'allcovering';
     }
 
+    function isVendedor() {
+      return isSignedIn() && userRole() == 'vendedor';
+    }
+
+    function assignedBranch() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sucursalAsignada;
+    }
+
+    function hasAssignedBranch() {
+      return assignedBranch() in ['gonnet', 'laplata', 'quilmes'];
+    }
+
+    function onlyDistributionSaleFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['cajasPorSucursal', 'updatedAt']);
+    }
+
+    function onlyAssignedBranchStockChanged() {
+      return request.resource.data.cajasPorSucursal
+        .diff(resource.data.cajasPorSucursal)
+        .affectedKeys()
+        .hasOnly([assignedBranch()]);
+    }
+
+    function assignedBranchStockDecreases() {
+      return request.resource.data.cajasPorSucursal[assignedBranch()] is int
+        && request.resource.data.cajasPorSucursal[assignedBranch()] >= 0
+        && request.resource.data.cajasPorSucursal[assignedBranch()]
+          <= resource.data.cajasPorSucursal[assignedBranch()];
+    }
+
+    function isVendedorDistributionSaleUpdate() {
+      return isVendedor()
+        && hasAssignedBranch()
+        && onlyDistributionSaleFieldsChanged()
+        && onlyAssignedBranchStockChanged()
+        && assignedBranchStockDecreases();
+    }
+
     // Users: each user can read their own profile. Admins can read/write all.
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
@@ -37,16 +76,27 @@ service cloud.firestore {
 
     // Distribution: readable by signed-in; admin + controlador may write
     // (controlador typically decreases their branch on sale; admin re-balances).
+    // Vendedores may only decrement their assigned branch during sale creation.
+    // This is an MVP client-side transaction; a Cloud Function/server action
+    // should replace client-side stock mutation for stronger sale/update coupling.
     match /distribucion/{productId} {
       allow read: if isSignedIn();
       allow write: if isAdmin() || isControlador();
+      allow update: if isVendedorDistributionSaleUpdate();
     }
 
     // Sales: signed-in can read; admin or controlador can create.
+    // Vendedores can only create sales for their assigned branch.
     // Allcovering is read-only.
     match /ventas/{saleId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() || isControlador();
+      allow read: if isAdmin()
+        || isControlador()
+        || isAllCovering()
+        || (isVendedor() && resource.data.sucursal == assignedBranch());
+      allow create: if isAdmin()
+        || isControlador()
+        || (isVendedor()
+          && request.resource.data.sucursal == assignedBranch());
       allow update, delete: if isAdmin();
     }
 

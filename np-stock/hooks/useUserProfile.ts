@@ -26,10 +26,28 @@ export function useUserProfile(uid: string | null): UseUserProfileResult {
     const unsub = onSnapshot(
       userDoc(uid),
       (snap) => {
-        setProfile(snap.exists() ? snap.data() : null);
+        if (!snap.exists()) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              `No Firestore profile found for uid: ${uid}. Expected document: users/${uid}`,
+            );
+          }
+
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        setProfile(snap.data());
         setLoading(false);
       },
       () => {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            `Unable to read Firestore profile for uid: ${uid}. Expected document: users/${uid}`,
+          );
+        }
+
         setProfile(null);
         setLoading(false);
       },

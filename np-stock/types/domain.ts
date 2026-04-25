@@ -1,6 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type Role = "admin" | "controlador" | "allcovering";
+export type Role = "admin" | "controlador" | "vendedor" | "allcovering";
 
 export type Branch = "gonnet" | "laplata" | "quilmes";
 

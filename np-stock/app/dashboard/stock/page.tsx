@@ -44,68 +44,77 @@ function zeroedBranches(): Record<Branch, number> {
 }
 
 function StockTable({ rows }: { rows: StockRow[] }) {
-  const columns: SimpleColumn<StockRow>[] = [
-    {
-      key: "nombre",
-      header: "Producto",
-      render: (r) => (
-        <div className="font-medium text-text-primary">{r.product.nombre}</div>
-      ),
-    },
-    {
-      key: "total",
-      header: "Total",
-      className: "text-right",
-      render: (r) => <span className="tabular-nums">{r.totalAvailable}</span>,
-    },
-    ...BRANCHES.map<SimpleColumn<StockRow>>((b) => ({
-      key: b,
-      header: BRANCH_LABELS[b],
-      className: "text-right",
-      render: (r) => <span className="tabular-nums">{r.branchBoxes[b] ?? 0}</span>,
-    })),
-    {
-      key: "sold",
-      header: "Vendidas",
-      className: "text-right",
-      render: (r) => <span className="tabular-nums">{r.sold}</span>,
-    },
-    {
-      key: "remaining",
-      header: "Restantes",
-      className: "text-right",
-      render: (r) => {
-        const low = r.remaining > 0 && r.remaining <= LOW_STOCK_THRESHOLD;
-        const empty = r.remaining === 0 && r.totalAvailable > 0;
-        return (
-          <span
-            className={cn(
-              "tabular-nums font-medium",
-              empty || low ? "text-danger" : "text-text-primary",
-            )}
-          >
-            {r.remaining}
-          </span>
-        );
+  const columns = useMemo<SimpleColumn<StockRow>[]>(
+    () => [
+      {
+        key: "nombre",
+        header: "Producto",
+        render: (r) => (
+          <div className="font-medium text-text-primary">
+            {r.product.nombre}
+          </div>
+        ),
       },
-    },
-    {
-      key: "sellThrough",
-      header: "Sell-through",
-      className: "text-right",
-      render: (r) => {
-        if (r.totalAvailable === 0) {
-          return <span className="text-text-muted">—</span>;
-        }
-        const high = r.sellThrough >= HIGH_SELL_THROUGH;
-        return (
-          <Badge tone={high ? "success" : "neutral"}>
-            {formatPercent(r.sellThrough)}
-          </Badge>
-        );
+      {
+        key: "total",
+        header: "Total",
+        className: "text-right",
+        render: (r) => (
+          <span className="tabular-nums">{r.totalAvailable}</span>
+        ),
       },
-    },
-  ];
+      ...BRANCHES.map<SimpleColumn<StockRow>>((b) => ({
+        key: b,
+        header: BRANCH_LABELS[b],
+        className: "text-right",
+        render: (r) => (
+          <span className="tabular-nums">{r.branchBoxes[b] ?? 0}</span>
+        ),
+      })),
+      {
+        key: "sold",
+        header: "Vendidas",
+        className: "text-right",
+        render: (r) => <span className="tabular-nums">{r.sold}</span>,
+      },
+      {
+        key: "remaining",
+        header: "Restantes",
+        className: "text-right",
+        render: (r) => {
+          const low = r.remaining > 0 && r.remaining <= LOW_STOCK_THRESHOLD;
+          const empty = r.remaining === 0 && r.totalAvailable > 0;
+          return (
+            <span
+              className={cn(
+                "tabular-nums font-medium",
+                empty || low ? "text-danger" : "text-text-primary",
+              )}
+            >
+              {r.remaining}
+            </span>
+          );
+        },
+      },
+      {
+        key: "sellThrough",
+        header: "Sell-through",
+        className: "text-right",
+        render: (r) => {
+          if (r.totalAvailable === 0) {
+            return <span className="text-text-muted">—</span>;
+          }
+          const high = r.sellThrough >= HIGH_SELL_THROUGH;
+          return (
+            <Badge tone={high ? "success" : "neutral"}>
+              {formatPercent(r.sellThrough)}
+            </Badge>
+          );
+        },
+      },
+    ],
+    [],
+  );
 
   return (
     <SimpleTable<StockRow>
