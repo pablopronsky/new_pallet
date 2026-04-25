@@ -68,19 +68,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Products: readable by app roles, only admin writes.
+    // Products: internal app roles only, because docs include sale prices/costs.
     // Note: Firestore cannot hide individual fields from a readable document.
-    // For a stricter provider portal, expose supplier-safe aggregate/product
-    // documents or a Cloud Function instead of raw productos.
     match /productos/{productId} {
       allow read: if isAdmin()
         || isControlador()
-        || isVendedor()
-        || isAllCovering();
+        || isVendedor();
       allow write: if isAdmin();
     }
 
-    // Distribution: readable by app roles; admin + controlador may write
+    // Distribution: internal roles can read; admin + controlador may write
     // (controlador typically decreases their branch on sale; admin re-balances).
     // Vendedores may only decrement their assigned branch during sale creation.
     // This is an MVP client-side transaction; a Cloud Function/server action
@@ -88,27 +85,29 @@ service cloud.firestore {
     match /distribucion/{productId} {
       allow read: if isAdmin()
         || isControlador()
-        || isVendedor()
-        || isAllCovering();
+        || isVendedor();
       allow write: if isAdmin() || isControlador();
       allow update: if isVendedorDistributionSaleUpdate();
     }
 
-    // Sales: signed-in can read; admin or controlador can create.
+    // Sales: internal only; admin/controlador can read all.
     // Vendedores can only create sales for their assigned branch.
-    // Allcovering is read-only. This MVP computes provider totals client-side
-    // from raw ventas; replace with supplier-safe aggregate documents or a
-    // Cloud Function before exposing the portal beyond trusted supplier access.
     match /ventas/{saleId} {
       allow read: if isAdmin()
         || isControlador()
-        || isAllCovering()
         || (isVendedor() && resource.data.sucursal == assignedBranch());
       allow create: if isAdmin()
         || isControlador()
         || (isVendedor()
           && request.resource.data.sucursal == assignedBranch());
       allow update, delete: if isAdmin();
+    }
+
+    // Supplier-safe provider snapshot. This is the only business data
+    // collection readable by All Covering.
+    match /proveedorResumen/{productId} {
+      allow read: if isAdmin() || isAllCovering();
+      allow write: if isAdmin();
     }
 
     // Audits: internal only. All Covering cannot read audit data.

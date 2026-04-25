@@ -77,3 +77,14 @@ export interface UserProfile {
   activo: boolean;
   createdAt?: Timestamp;
 }
+
+export interface ProviderSnapshot {
+  productId: string;
+  nombre: string;
+  categoria: ProductCategory;
+  esBudget: boolean;
+  cajasVendidas: number;
+  cajasRestantes: number;
+  deudaUSD: number;
+  updatedAt?: Timestamp;
+}

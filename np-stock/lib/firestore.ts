@@ -12,6 +12,7 @@ import type {
   Audit,
   Product,
   ProductDistribution,
+  ProviderSnapshot,
   Sale,
   UserProfile,
 } from "@/types/domain";
@@ -24,6 +25,7 @@ export const COLLECTIONS = {
   ventas: "ventas",
   auditorias: "auditorias",
   config: "config",
+  proveedorResumen: "proveedorResumen",
 } as const;
 
 function createConverter<T extends { id: string }>(): FirestoreDataConverter<T> {
@@ -56,6 +58,15 @@ const distributionConverter = createConverter<ProductDistribution>();
 const saleConverter = createConverter<Sale>();
 const auditConverter = createConverter<Audit>();
 const configConverter = createConverter<AppConfig>();
+const providerSnapshotConverter: FirestoreDataConverter<ProviderSnapshot> = {
+  toFirestore(model: ProviderSnapshot) {
+    return model;
+  },
+  fromFirestore(snapshot: QueryDocumentSnapshot): ProviderSnapshot {
+    const data = snapshot.data() as ProviderSnapshot;
+    return { ...data, productId: data.productId ?? snapshot.id };
+  },
+};
 
 export const usersCollection = (): CollectionReference<UserProfile> =>
   collection(db, COLLECTIONS.users).withConverter(userConverter);
@@ -75,6 +86,12 @@ export const auditsCollection = (): CollectionReference<Audit> =>
 export const configCollection = (): CollectionReference<AppConfig> =>
   collection(db, COLLECTIONS.config).withConverter(configConverter);
 
+export const providerSnapshotCollection =
+  (): CollectionReference<ProviderSnapshot> =>
+    collection(db, COLLECTIONS.proveedorResumen).withConverter(
+      providerSnapshotConverter,
+    );
+
 export const userDoc = (uid: string): DocumentReference<UserProfile> =>
   doc(usersCollection(), uid);
 
@@ -93,3 +110,8 @@ export const auditDoc = (id: string): DocumentReference<Audit> =>
 
 export const configDoc = (): DocumentReference<AppConfig> =>
   doc(configCollection(), CONFIG_DOC_ID);
+
+export const providerSnapshotDoc = (
+  productId: string,
+): DocumentReference<ProviderSnapshot> =>
+  doc(providerSnapshotCollection(), productId);
