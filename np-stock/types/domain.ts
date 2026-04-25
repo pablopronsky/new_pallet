@@ -88,3 +88,14 @@ export interface ProviderSnapshot {
   deudaUSD: number;
   updatedAt?: Timestamp;
 }
+
+export interface IngresoStock {
+  id: string;
+  productId: string;
+  sucursal: Branch;
+  cajas: number;
+  fecha: Timestamp;
+  createdBy: string;
+  notas?: string;
+  createdAt?: Timestamp;
+}

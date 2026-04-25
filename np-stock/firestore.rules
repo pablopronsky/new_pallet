@@ -62,6 +62,36 @@ service cloud.firestore {
         && assignedBranchStockDecreases();
     }
 
+    function isValidIngresoCreate() {
+      return request.resource.data.keys().hasOnly([
+          'productId',
+          'sucursal',
+          'cajas',
+          'fecha',
+          'createdBy',
+          'notas',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'productId',
+          'sucursal',
+          'cajas',
+          'fecha',
+          'createdBy',
+          'createdAt'
+        ])
+        && request.resource.data.productId is string
+        && request.resource.data.productId != ''
+        && request.resource.data.sucursal in ['gonnet', 'laplata', 'quilmes']
+        && request.resource.data.cajas is int
+        && request.resource.data.cajas > 0
+        && request.resource.data.fecha is timestamp
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && (!('notas' in request.resource.data)
+          || request.resource.data.notas is string);
+    }
+
     // Users: each user can read their own profile. Admins can read/write all.
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
@@ -101,6 +131,16 @@ service cloud.firestore {
         || (isVendedor()
           && request.resource.data.sucursal == assignedBranch());
       allow update, delete: if isAdmin();
+    }
+
+    // Incoming stock entries: internal stock intake history.
+    // Creating an ingreso must happen with a transaction that also updates
+    // distribucion/{productId}.cajasPorSucursal.
+    match /ingresos/{ingresoId} {
+      allow read: if isAdmin() || isControlador();
+      allow create: if (isAdmin() || isControlador()) && isValidIngresoCreate();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     // Supplier-safe provider snapshot. This is the only business data

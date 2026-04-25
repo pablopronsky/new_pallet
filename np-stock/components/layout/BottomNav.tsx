@@ -17,6 +17,7 @@ const itemsByRole: Record<Role, NavItem[]> = {
     { href: "/dashboard/proveedor", label: "All Covering" },
     { href: "/dashboard/stock", label: "Stock" },
     { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/ingresos", label: "Ingresos" },
     { href: "/dashboard/historial", label: "Historial" },
     { href: "/dashboard/auditorias", label: "Auditorías" },
     { href: "/dashboard/configuracion", label: "Config." },
@@ -26,6 +27,7 @@ const itemsByRole: Record<Role, NavItem[]> = {
   controlador: [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/dashboard/ventas", label: "Ventas" },
+    { href: "/dashboard/ingresos", label: "Ingresos" },
     { href: "/dashboard/auditorias", label: "Auditorías" },
     { href: "/dashboard/historial", label: "Historial" },
   ],
