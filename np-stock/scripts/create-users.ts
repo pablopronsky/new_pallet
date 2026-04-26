@@ -22,6 +22,7 @@ import type { Branch, Role } from "../types/domain";
 const requiredEnvVars = [
   "GOOGLE_APPLICATION_CREDENTIALS",
   "ADMIN_PASSWORD",
+  "CONTROLADOR_PASSWORD",
   "QUILMES_PASSWORD",
   "GONNET_PASSWORD",
   "LAPLATA_PASSWORD",
@@ -45,6 +46,12 @@ const users: UserSeed[] = [
     passwordEnv: "ADMIN_PASSWORD",
     nombre: "Pablo Pronsky",
     role: "admin",
+  },
+  {
+    email: "controlador@np.com",
+    passwordEnv: "CONTROLADOR_PASSWORD",
+    nombre: "Controlador",
+    role: "controlador",
   },
   {
     email: "quilmes@np.com",

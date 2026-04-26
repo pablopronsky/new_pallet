@@ -317,7 +317,7 @@ export default function HistorialPage() {
       </div>
 
       <div className="mt-6">
-        <RoleGuard allowedRoles={["admin", "controlador", "vendedor"]}>
+        <RoleGuard allowedRoles={["admin", "vendedor"]}>
           <HistoryContent />
         </RoleGuard>
       </div>

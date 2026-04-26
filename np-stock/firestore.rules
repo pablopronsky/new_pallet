@@ -66,6 +66,38 @@ service cloud.firestore {
         && assignedBranchStockDecreases();
     }
 
+    function distributionBranchBoxesValid() {
+      return request.resource.data.cajasPorSucursal.keys().hasOnly([
+          'gonnet',
+          'laplata',
+          'quilmes'
+        ])
+        && request.resource.data.cajasPorSucursal.keys().hasAll([
+          'gonnet',
+          'laplata',
+          'quilmes'
+        ])
+        && request.resource.data.cajasPorSucursal.gonnet is int
+        && request.resource.data.cajasPorSucursal.gonnet >= 0
+        && request.resource.data.cajasPorSucursal.laplata is int
+        && request.resource.data.cajasPorSucursal.laplata >= 0
+        && request.resource.data.cajasPorSucursal.quilmes is int
+        && request.resource.data.cajasPorSucursal.quilmes >= 0;
+    }
+
+    function distributionTotal(data) {
+      return data.cajasPorSucursal.gonnet
+        + data.cajasPorSucursal.laplata
+        + data.cajasPorSucursal.quilmes;
+    }
+
+    function isControladorDistributionMovementUpdate() {
+      return isControlador()
+        && onlyDistributionSaleFieldsChanged()
+        && distributionBranchBoxesValid()
+        && distributionTotal(request.resource.data) == distributionTotal(resource.data);
+    }
+
     function isValidIngresoCreate() {
       return request.resource.data.keys().hasOnly([
           'productId',
@@ -143,31 +175,67 @@ service cloud.firestore {
           || request.resource.data.notas is string);
     }
 
+    function isValidTrasladoCreate() {
+      return request.resource.data.keys().hasOnly([
+          'productId',
+          'sucursalOrigen',
+          'sucursalDestino',
+          'cajas',
+          'fecha',
+          'createdBy',
+          'notas',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'productId',
+          'sucursalOrigen',
+          'sucursalDestino',
+          'cajas',
+          'fecha',
+          'createdBy',
+          'createdAt'
+        ])
+        && request.resource.data.productId is string
+        && request.resource.data.productId != ''
+        && request.resource.data.sucursalOrigen in ['gonnet', 'laplata', 'quilmes']
+        && request.resource.data.sucursalDestino in ['gonnet', 'laplata', 'quilmes']
+        && request.resource.data.sucursalOrigen != request.resource.data.sucursalDestino
+        && request.resource.data.cajas is int
+        && request.resource.data.cajas > 0
+        && request.resource.data.fecha is timestamp
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && (!('notas' in request.resource.data)
+          || request.resource.data.notas is string);
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow write: if isAdmin();
     }
 
     match /productos/{productId} {
+      // Controlador reads productos only to perform audits.
       allow read: if isAdmin() || isControlador() || isVendedor();
       allow write: if isAdmin();
     }
 
     match /distribucion/{productId} {
+      // Controlador reads distribucion only to perform audits.
       allow read: if isAdmin() || isControlador() || isVendedor();
 
-      allow create, update, delete: if isAdmin() || isControlador();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow update: if isControladorDistributionMovementUpdate();
 
       allow update: if isVendedorDistributionSaleUpdate();
     }
 
     match /ventas/{saleId} {
       allow read: if isAdmin()
-        || isControlador()
         || (isVendedor() && resource.data.sucursal == assignedBranch());
 
       allow create: if isAdmin()
-        || isControlador()
         || (
           isVendedor()
           && hasAssignedBranch()
@@ -181,18 +249,24 @@ service cloud.firestore {
     }
 
     match /ingresos/{ingresoId} {
-      allow read: if isAdmin() || isControlador();
+      allow read: if isAdmin();
 
-      allow create: if isAdmin()
-        || (isControlador() && isValidIngresoCreate());
+      allow create: if isAdmin();
 
       allow update: if false;
       allow delete: if isAdmin();
     }
 
     match /bajas/{bajaId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /traslados/{trasladoId} {
       allow read: if isAdmin() || isControlador();
-      allow create: if (isAdmin() || isControlador()) && isValidBajaCreate();
+      allow create: if (isAdmin() || isControlador()) && isValidTrasladoCreate();
       allow update: if false;
       allow delete: if isAdmin();
     }
@@ -209,7 +283,7 @@ service cloud.firestore {
     }
 
     match /config/{docId} {
-      allow read: if isAdmin() || isControlador() || isVendedor();
+      allow read: if isAdmin() || isVendedor();
       allow write: if isAdmin();
     }
 

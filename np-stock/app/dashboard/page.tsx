@@ -145,6 +145,46 @@ function ProviderDashboard() {
   );
 }
 
+function ControladorDashboard() {
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-text-secondary">
+          Operaciones de auditoria y movimientos de stock
+        </p>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <Link href="/dashboard/auditorias" className="block">
+          <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
+            <CardHeader>
+              <CardTitle>Auditorias</CardTitle>
+              <Badge tone="primary">controlador</Badge>
+            </CardHeader>
+            <p className="text-sm text-text-secondary">
+              Realizar conteos fisicos y registrar diferencias contra el stock
+              del sistema.
+            </p>
+          </Card>
+        </Link>
+        <Link href="/dashboard/traslados" className="block">
+          <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
+            <CardHeader>
+              <CardTitle>Movimientos</CardTitle>
+              <Badge tone="success">stock</Badge>
+            </CardHeader>
+            <p className="text-sm text-text-secondary">
+              Transferir mercaderia entre sucursales sin cambiar el stock
+              global.
+            </p>
+          </Card>
+        </Link>
+      </div>
+    </>
+  );
+}
+
 function InternalDashboard() {
   const { role, profile } = useAuth();
   const vendedorBranch =
@@ -256,7 +296,7 @@ function InternalDashboard() {
           </Card>
         </Link>
 
-        {(role === "admin" || role === "controlador") && (
+        {role === "admin" && (
           <Link href="/dashboard/ingresos" className="block">
             <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
               <CardHeader>
@@ -270,7 +310,7 @@ function InternalDashboard() {
           </Link>
         )}
 
-        {(role === "admin" || role === "controlador") && (
+        {role === "admin" && (
           <Link href="/dashboard/bajas" className="block">
             <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
               <CardHeader>
@@ -279,6 +319,20 @@ function InternalDashboard() {
               </CardHeader>
               <p className="text-sm text-text-secondary">
                 Registrar salidas no vinculadas a ventas.
+              </p>
+            </Card>
+          </Link>
+        )}
+
+        {role === "admin" && (
+          <Link href="/dashboard/traslados" className="block">
+            <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
+              <CardHeader>
+                <CardTitle>Movimientos</CardTitle>
+                <Badge tone="success">stock</Badge>
+              </CardHeader>
+              <p className="text-sm text-text-secondary">
+                Mover mercaderia entre sucursales.
               </p>
             </Card>
           </Link>
@@ -301,6 +355,10 @@ export default function DashboardPage() {
 
   if (role === "allcovering") {
     return <ProviderDashboard />;
+  }
+
+  if (role === "controlador") {
+    return <ControladorDashboard />;
   }
 
   return <InternalDashboard />;

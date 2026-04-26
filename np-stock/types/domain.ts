@@ -120,3 +120,15 @@ export interface BajaStock {
   notas?: string;
   createdAt?: Timestamp;
 }
+
+export interface TrasladoStock {
+  id: string;
+  productId: string;
+  sucursalOrigen: Branch;
+  sucursalDestino: Branch;
+  cajas: number;
+  fecha: Timestamp;
+  createdBy: string;
+  notas?: string;
+  createdAt?: Timestamp;
+}

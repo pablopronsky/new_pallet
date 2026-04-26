@@ -21,6 +21,7 @@ The script requires:
 
 - `GOOGLE_APPLICATION_CREDENTIALS`
 - `ADMIN_PASSWORD`
+- `CONTROLADOR_PASSWORD`
 - `QUILMES_PASSWORD`
 - `GONNET_PASSWORD`
 - `LAPLATA_PASSWORD`
@@ -31,6 +32,7 @@ The script requires:
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS="/c/path/to/serviceAccount.json"
 export ADMIN_PASSWORD="ninguna"
+export CONTROLADOR_PASSWORD="controlador123"
 export QUILMES_PASSWORD="quilmes123"
 export GONNET_PASSWORD="gonnet123"
 export LAPLATA_PASSWORD="laplata123"
@@ -43,6 +45,7 @@ npm run setup:users
 ```powershell
 $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\serviceAccount.json"
 $env:ADMIN_PASSWORD="ninguna"
+$env:CONTROLADOR_PASSWORD="controlador123"
 $env:QUILMES_PASSWORD="quilmes123"
 $env:GONNET_PASSWORD="gonnet123"
 $env:LAPLATA_PASSWORD="laplata123"
@@ -55,6 +58,7 @@ npm run setup:users
 | Email | Role | sucursalAsignada |
 | --- | --- | --- |
 | pronskypablo@gmail.com | admin | |
+| controlador@np.com | controlador | |
 | quilmes@np.com | vendedor | quilmes |
 | gonnet@np.com | vendedor | gonnet |
 | laplata@np.com | vendedor | laplata |

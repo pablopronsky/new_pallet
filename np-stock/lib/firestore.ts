@@ -16,6 +16,7 @@ import type {
   ProductDistribution,
   ProviderSnapshot,
   Sale,
+  TrasladoStock,
   UserProfile,
 } from "@/types/domain";
 import { CONFIG_DOC_ID } from "@/lib/constants";
@@ -30,6 +31,7 @@ export const COLLECTIONS = {
   proveedorResumen: "proveedorResumen",
   ingresos: "ingresos",
   bajas: "bajas",
+  traslados: "traslados",
 } as const;
 
 function createConverter<T extends { id: string }>(): FirestoreDataConverter<T> {
@@ -64,6 +66,7 @@ const auditConverter = createConverter<Audit>();
 const configConverter = createConverter<AppConfig>();
 const ingresoConverter = createConverter<IngresoStock>();
 const bajaConverter = createConverter<BajaStock>();
+const trasladoConverter = createConverter<TrasladoStock>();
 const providerSnapshotConverter: FirestoreDataConverter<ProviderSnapshot> = {
   toFirestore(model: ProviderSnapshot) {
     return model;
@@ -98,6 +101,9 @@ export const ingresosCollection = (): CollectionReference<IngresoStock> =>
 export const bajasCollection = (): CollectionReference<BajaStock> =>
   collection(db, COLLECTIONS.bajas).withConverter(bajaConverter);
 
+export const trasladosCollection = (): CollectionReference<TrasladoStock> =>
+  collection(db, COLLECTIONS.traslados).withConverter(trasladoConverter);
+
 export const providerSnapshotCollection =
   (): CollectionReference<ProviderSnapshot> =>
     collection(db, COLLECTIONS.proveedorResumen).withConverter(
@@ -128,6 +134,9 @@ export const ingresoDoc = (id: string): DocumentReference<IngresoStock> =>
 
 export const bajaDoc = (id: string): DocumentReference<BajaStock> =>
   doc(bajasCollection(), id);
+
+export const trasladoDoc = (id: string): DocumentReference<TrasladoStock> =>
+  doc(trasladosCollection(), id);
 
 export const providerSnapshotDoc = (
   productId: string,

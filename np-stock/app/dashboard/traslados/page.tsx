@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,17 +8,18 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
-import { useIngresos } from "@/hooks/useIngresos";
+import { useDistribution } from "@/hooks/useDistribution";
 import { useProducts } from "@/hooks/useProducts";
+import { useTraslados } from "@/hooks/useTraslados";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
-import { formatDateAR, formatNumberAR, formatUSD } from "@/lib/formatters";
-import type { Branch, IngresoStock } from "@/types/domain";
+import { formatDateAR, formatNumberAR } from "@/lib/formatters";
+import type { Branch, TrasladoStock } from "@/types/domain";
 
 interface FormState {
   productId: string;
-  sucursal: Branch;
+  sucursalOrigen: Branch;
+  sucursalDestino: Branch;
   cajas: string;
-  costoUSDPorCaja: string;
   fecha: string;
   notas: string;
 }
@@ -39,17 +40,19 @@ function dateFromInput(value: string): Date {
 function initialFormState(): FormState {
   return {
     productId: "",
-    sucursal: "gonnet",
+    sucursalOrigen: "gonnet",
+    sucursalDestino: "quilmes",
     cajas: "",
-    costoUSDPorCaja: "",
     fecha: todayInputValue(),
     notas: "",
   };
 }
 
-function IngresosContent() {
+function TrasladosContent() {
   const { products, loading: productsLoading } = useProducts({ activeOnly: false });
-  const { ingresos, loading, error, createIngreso, submitting } = useIngresos();
+  const { byProductId, loading: distributionLoading } = useDistribution();
+  const { traslados, loading, error, createTraslado, submitting } =
+    useTraslados();
   const [form, setForm] = useState<FormState>(() => initialFormState());
   const [formError, setFormError] = useState<Error | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
@@ -59,23 +62,6 @@ function IngresosContent() {
     for (const product of products) map[product.id] = product.nombre;
     return map;
   }, [products]);
-
-  const selectedProduct = useMemo(
-    () => products.find((product) => product.id === form.productId) ?? null,
-    [form.productId, products],
-  );
-
-  useEffect(() => {
-    if (!selectedProduct || selectedProduct.costoUSD <= 0) return;
-    setForm((current) =>
-      current.costoUSDPorCaja
-        ? current
-        : {
-            ...current,
-            costoUSDPorCaja: String(selectedProduct.costoUSD),
-          },
-    );
-  }, [selectedProduct]);
 
   const productOptions = useMemo(
     () => [
@@ -97,92 +83,81 @@ function IngresosContent() {
     [],
   );
 
-  const recentIngresos = useMemo(() => ingresos.slice(0, 20), [ingresos]);
+  const originStock = useMemo(() => {
+    if (!form.productId) return null;
+    const distribution = byProductId[form.productId];
+    if (!distribution) return 0;
+    return distribution.cajasPorSucursal[form.sucursalOrigen] ?? 0;
+  }, [byProductId, form.productId, form.sucursalOrigen]);
 
-  const totalCostUSD = useMemo(() => {
-    const cajas = Number(form.cajas);
-    const costoUSDPorCaja = Number(form.costoUSDPorCaja);
-    if (
-      !Number.isFinite(cajas) ||
-      !Number.isFinite(costoUSDPorCaja) ||
-      cajas <= 0 ||
-      costoUSDPorCaja <= 0
-    ) {
-      return 0;
-    }
-    return cajas * costoUSDPorCaja;
-  }, [form.cajas, form.costoUSDPorCaja]);
+  const recentTraslados = useMemo(
+    () => traslados.slice(0, 20),
+    [traslados],
+  );
 
-  const columns = useMemo<SimpleColumn<IngresoStock>[]>(
+  const columns = useMemo<SimpleColumn<TrasladoStock>[]>(
     () => [
       {
         key: "fecha",
         header: "Fecha",
-        render: (ingreso) => (
+        render: (traslado) => (
           <span className="tabular-nums text-text-secondary">
-            {formatDateAR(ingreso.fecha.toDate())}
+            {formatDateAR(traslado.fecha.toDate())}
           </span>
         ),
       },
       {
         key: "producto",
         header: "Producto",
-        render: (ingreso) => (
+        render: (traslado) => (
           <span className="font-medium text-text-primary">
-            {productName[ingreso.productId] ?? ingreso.productId}
+            {productName[traslado.productId] ?? traslado.productId}
           </span>
         ),
       },
       {
-        key: "sucursal",
-        header: "Sucursal",
-        render: (ingreso) => (
-          <Badge tone="neutral">{BRANCH_LABELS[ingreso.sucursal]}</Badge>
+        key: "origen",
+        header: "Origen",
+        render: (traslado) => (
+          <Badge tone="neutral">
+            {BRANCH_LABELS[traslado.sucursalOrigen]}
+          </Badge>
+        ),
+      },
+      {
+        key: "destino",
+        header: "Destino",
+        render: (traslado) => (
+          <Badge tone="success">
+            {BRANCH_LABELS[traslado.sucursalDestino]}
+          </Badge>
         ),
       },
       {
         key: "cajas",
         header: "Cajas",
         className: "text-right",
-        render: (ingreso) => (
-          <span className="tabular-nums">{formatNumberAR(ingreso.cajas)}</span>
-        ),
-      },
-      {
-        key: "costoUSDPorCaja",
-        header: "Costo USD/caja",
-        className: "text-right",
-        render: (ingreso) => (
+        render: (traslado) => (
           <span className="tabular-nums">
-            {formatUSD(ingreso.costoUSDPorCaja)}
-          </span>
-        ),
-      },
-      {
-        key: "costoTotalUSD",
-        header: "Costo total USD",
-        className: "text-right",
-        render: (ingreso) => (
-          <span className="tabular-nums">
-            {formatUSD(ingreso.costoTotalUSD)}
+            {formatNumberAR(traslado.cajas)}
           </span>
         ),
       },
       {
         key: "createdBy",
         header: "Creado por",
-        render: (ingreso) => (
+        render: (traslado) => (
           <span className="text-xs text-text-secondary">
-            {ingreso.createdBy}
+            {traslado.createdBy}
           </span>
         ),
       },
       {
         key: "notas",
         header: "Notas",
-        render: (ingreso) => (
+        render: (traslado) => (
           <span className="text-text-secondary">
-            {ingreso.notas || <span className="text-text-muted">-</span>}
+            {traslado.notas || <span className="text-text-muted">-</span>}
           </span>
         ),
       },
@@ -194,27 +169,17 @@ function IngresosContent() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function handleProductChange(productId: string) {
-    const product = products.find((item) => item.id === productId);
-    setForm((current) => ({
-      ...current,
-      productId,
-      costoUSDPorCaja:
-        product && product.costoUSD > 0 ? String(product.costoUSD) : "",
-    }));
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
     setSuccess(false);
 
     try {
-      await createIngreso({
+      await createTraslado({
         productId: form.productId,
-        sucursal: form.sucursal,
+        sucursalOrigen: form.sucursalOrigen,
+        sucursalDestino: form.sucursalDestino,
         cajas: Number(form.cajas),
-        costoUSDPorCaja: Number(form.costoUSDPorCaja),
         fecha: dateFromInput(form.fecha),
         notas: form.notas,
       });
@@ -223,7 +188,7 @@ function IngresosContent() {
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setFormError(
-        err instanceof Error ? err : new Error("No se pudo crear el ingreso"),
+        err instanceof Error ? err : new Error("No se pudo crear el traslado"),
       );
     }
   }
@@ -232,8 +197,8 @@ function IngresosContent() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Nuevo ingreso</CardTitle>
-          {productsLoading && (
+          <CardTitle>Nuevo movimiento</CardTitle>
+          {(productsLoading || distributionLoading) && (
             <span className="text-xs text-text-muted">Cargando...</span>
           )}
         </CardHeader>
@@ -244,16 +209,26 @@ function IngresosContent() {
               label="Producto"
               name="productId"
               value={form.productId}
-              onChange={(event) => handleProductChange(event.target.value)}
+              onChange={(event) => update("productId", event.target.value)}
               options={productOptions}
               disabled={productsLoading || submitting}
             />
             <Select
-              label="Sucursal"
-              name="sucursal"
-              value={form.sucursal}
+              label="Sucursal origen"
+              name="sucursalOrigen"
+              value={form.sucursalOrigen}
               onChange={(event) =>
-                update("sucursal", event.target.value as Branch)
+                update("sucursalOrigen", event.target.value as Branch)
+              }
+              options={branchOptions}
+              disabled={submitting}
+            />
+            <Select
+              label="Sucursal destino"
+              name="sucursalDestino"
+              value={form.sucursalDestino}
+              onChange={(event) =>
+                update("sucursalDestino", event.target.value as Branch)
               }
               options={branchOptions}
               disabled={submitting}
@@ -269,18 +244,6 @@ function IngresosContent() {
               disabled={submitting}
             />
             <Input
-              label="Costo USD/caja"
-              name="costoUSDPorCaja"
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.costoUSDPorCaja}
-              onChange={(event) =>
-                update("costoUSDPorCaja", event.target.value)
-              }
-              disabled={submitting}
-            />
-            <Input
               label="Fecha"
               name="fecha"
               type="date"
@@ -290,12 +253,14 @@ function IngresosContent() {
             />
           </div>
 
-          <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-secondary">
-            Total costo:{" "}
-            <span className="font-medium text-text-primary">
-              {formatUSD(totalCostUSD)}
-            </span>
-          </p>
+          {originStock !== null && (
+            <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-secondary">
+              Stock disponible en origen:{" "}
+              <span className="font-medium text-text-primary">
+                {formatNumberAR(originStock)} cajas
+              </span>
+            </p>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <label
@@ -324,7 +289,7 @@ function IngresosContent() {
 
           {success && (
             <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
-              Ingreso registrado.
+              Movimiento registrado.
             </p>
           )}
 
@@ -334,11 +299,11 @@ function IngresosContent() {
               disabled={
                 submitting ||
                 productsLoading ||
-                !form.productId ||
-                Number(form.costoUSDPorCaja) <= 0
+                distributionLoading ||
+                !form.productId
               }
             >
-              {submitting ? "Registrando..." : "Registrar ingreso"}
+              {submitting ? "Registrando..." : "Registrar movimiento"}
             </Button>
           </div>
         </form>
@@ -346,34 +311,36 @@ function IngresosContent() {
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Ingresos recientes</CardTitle>
+          <CardTitle>Movimientos recientes</CardTitle>
           {loading && <span className="text-xs text-text-muted">Cargando...</span>}
         </CardHeader>
 
-        <SimpleTable<IngresoStock>
+        <SimpleTable<TrasladoStock>
           columns={columns}
-          rows={recentIngresos}
-          rowKey={(ingreso) => ingreso.id}
-          empty={loading ? "Cargando..." : "Sin ingresos registrados"}
+          rows={recentTraslados}
+          rowKey={(traslado) => traslado.id}
+          empty={loading ? "Cargando..." : "Sin movimientos registrados"}
         />
       </Card>
     </>
   );
 }
 
-export default function IngresosPage() {
+export default function TrasladosPage() {
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Ingresos</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Movimientos entre sucursales
+        </h1>
         <p className="text-sm text-text-secondary">
-          Carga de mercadería recibida por sucursal
+          {"Transferencia de mercader\u00eda entre sucursales"}
         </p>
       </div>
 
       <div className="mt-6">
-        <RoleGuard allowedRoles={["admin"]}>
-          <IngresosContent />
+        <RoleGuard allowedRoles={["admin", "controlador"]}>
+          <TrasladosContent />
         </RoleGuard>
       </div>
     </>

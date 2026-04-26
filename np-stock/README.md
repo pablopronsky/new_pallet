@@ -35,12 +35,13 @@ np-stock tracks consignment inventory from *All Covering* distributed to three N
 - **Sale** - individual sale: product, branch, boxes, `montoUSD`, `tipoCambioUSD`, `montoARS`, date, seller.
 - **IngresoStock** (`ingresos/{id}`) - incoming merchandise entry with branch, boxes, `costoUSDPorCaja`, and `costoTotalUSD`.
 - **BajaStock** (`bajas/{id}`) - non-sale stock exit/correction with branch, boxes, reason, date, creator, and optional notes.
+- **TrasladoStock** (`traslados/{id}`) - branch-to-branch movement with product, origin, destination, boxes, date, creator, and optional notes.
 - **ProviderSnapshot** (`proveedorResumen/{productId}`) - supplier-safe aggregate for All Covering with sold boxes, remaining boxes, and debt only.
 - **Audit** - audit record with per-product/per-branch counts and differences.
 - **AppConfig** - singleton config doc with `tipoCambioUSD`.
 - **UserProfile** - doc keyed by Firebase Auth uid with `role`, `activo`, and optional `sucursalAsignada`.
 
-### Calculated values
+## Calculated values
 
 These values are derived at read time and should not be persisted:
 
@@ -65,6 +66,7 @@ The three core collections have distinct responsibilities:
 - **`ventas/{id}`** - historical sale records used for sold totals, debt, and revenue calculations.
 - **`ingresos/{id}`** - historical incoming stock records. These store cost in USD per box and total USD cost. ARS is not used for ingresos; ARS is only used for customer sales conversion.
 - **`bajas/{id}`** - historical non-sale exits/corrections. Creating a baja decreases live stock in `distribucion` and creates baja history only; it does not create `ventas` or affect customer revenue.
+- **`traslados/{id}`** - historical branch-to-branch movements. Creating a traslado subtracts boxes from the origin branch and adds the same boxes to the destination branch, so global stock does not change.
 
 ### Flow
 
@@ -116,6 +118,7 @@ Required environment variables:
 
 - `GOOGLE_APPLICATION_CREDENTIALS`
 - `ADMIN_PASSWORD`
+- `CONTROLADOR_PASSWORD`
 - `QUILMES_PASSWORD`
 - `GONNET_PASSWORD`
 - `LAPLATA_PASSWORD`
@@ -156,6 +159,14 @@ npm run type-check
 - `vendedor`
 - `allcovering`
 
+### Controlador
+
+- Can access Dashboard, Auditorías, and Movimientos.
+- Can read and create `auditorias`.
+- Can access Movimientos and create `traslados`.
+- Reads `productos` and `distribucion` only to perform audits and branch movements.
+- Cannot sell, create ingresos/bajas, read sales history, or access configuration/provider/admin areas.
+
 ### Vendedor
 
 - Has `sucursalAsignada` in `users/{uid}`.
@@ -174,19 +185,20 @@ The current sales hook also forces a `vendedor` sale to use the assigned branch,
 
 The provider portal does not read raw `ventas`, `productos`, `distribucion`, `config`, `auditorias`, or other users.
 
-### Firestore rules summary
+## Firestore rules summary
 
-Rules live in [firestore.rules](/C:/Users/pablo/OneDrive/Documentos/pallet-codex/new_pallet/np-stock/firestore.rules).
+Rules live in [firestore.rules](./firestore.rules).
 
 - `users/{uid}` - read: same user or admin. Write: admin only.
-- `productos/{productId}` - read: `admin`, `controlador`, `vendedor`. Write: admin only.
-- `distribucion/{productId}` - read: `admin`, `controlador`, `vendedor`. Write: admin or controlador. `vendedor` can only update their assigned branch stock, only by decreasing it during sale creation.
-- `ventas/{saleId}` - read: admin/controlador, plus `vendedor` only for their assigned branch. Create: admin/controlador, plus `vendedor` only for their assigned branch. Update/delete: admin only.
-- `ingresos/{ingresoId}` - read/create: admin or controlador. Delete: admin only. Update: denied.
-- `bajas/{bajaId}` - read/create: admin or controlador. Delete: admin only. Update: denied.
+- `productos/{productId}` - read: `admin`, `controlador`, `vendedor`. Controlador reads this only for audits. Write: admin only.
+- `distribucion/{productId}` - read: `admin`, `controlador`, `vendedor`. Controlador reads this only for audits/movements and may update it only when moving stock without changing total product stock. Write: admin, plus vendedor update only when decreasing assigned branch stock during sale creation.
+- `ventas/{saleId}` - read/create: admin, plus vendedor only for their assigned branch. Update/delete: admin only.
+- `ingresos/{ingresoId}` - read/create/delete: admin only. Update: denied.
+- `bajas/{bajaId}` - read/create/delete: admin only. Update: denied.
+- `traslados/{trasladoId}` - read/create: admin or controlador. Delete: admin only. Update: denied.
 - `proveedorResumen/{productId}` - read: admin or allcovering. Write: admin only.
 - `auditorias/{auditId}` - read/create: admin or controlador. Update/delete: admin only.
-- `config/{docId}` - read: admin, controlador, vendedor. Write: admin only.
+- `config/{docId}` - read: admin or vendedor. Write: admin only.
 - Any other path - denied.
 
 ## Project status
@@ -199,6 +211,7 @@ Implemented:
 - live stock
 - ingresos
 - bajas
+- movimientos/traslados
 - history
 - configuration
 - audits

@@ -315,7 +315,7 @@ export default function BajasPage() {
       </div>
 
       <div className="mt-6">
-        <RoleGuard allowedRoles={["admin", "controlador"]}>
+        <RoleGuard allowedRoles={["admin"]}>
           <BajasContent />
         </RoleGuard>
       </div>
