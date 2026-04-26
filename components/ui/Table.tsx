@@ -13,9 +13,12 @@ export function Table({
   ...rest
 }: TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-border">
+    <div className="w-full max-w-full overflow-x-auto rounded-xl border border-border shadow-[inset_-16px_0_16px_-18px_rgba(255,255,255,0.35)]">
       <table
-        className={cn("w-full text-left text-sm text-text-primary", className)}
+        className={cn(
+          "min-w-max w-full text-left text-sm text-text-primary",
+          className,
+        )}
         {...rest}
       >
         {children}
@@ -73,7 +76,7 @@ export function TH({
 }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={cn("px-4 py-3 font-medium", className)}
+      className={cn("whitespace-nowrap px-3 py-3 font-medium sm:px-4", className)}
       {...rest}
     >
       {children}
@@ -87,7 +90,7 @@ export function TD({
   ...rest
 }: TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn("px-4 py-3", className)} {...rest}>
+    <td className={cn("whitespace-nowrap px-3 py-3 sm:px-4", className)} {...rest}>
       {children}
     </td>
   );

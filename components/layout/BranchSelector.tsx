@@ -27,7 +27,7 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
   };
 
   return (
-    <div className="hidden items-center gap-1 rounded-xl border border-border bg-surface p-1 lg:inline-flex">
+    <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {options.map((o) => {
         const isActive = o.value === active;
         return (
@@ -36,7 +36,7 @@ export function BranchSelector({ value, onChange }: BranchSelectorProps) {
             type="button"
             onClick={() => handle(o.value)}
             className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+              "min-h-10 shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
               isActive
                 ? "bg-primary text-white"
                 : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",

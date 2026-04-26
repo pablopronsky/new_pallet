@@ -162,16 +162,20 @@ export function calculateAuditAlerts(
   audits: Audit[],
   options: {
     period?: DashboardPeriod;
+    branch?: Branch;
     now?: Date;
   } = {},
 ): AuditAlert[] {
-  const { period = "all", now = new Date() } = options;
+  const { period = "all", branch, now = new Date() } = options;
 
   return audits
     .filter((audit) => !audit.resuelta && isInPeriod(audit.fecha, period, now))
     .flatMap((audit) =>
       audit.items
-        .filter((item) => item.diferencia !== 0)
+        .filter(
+          (item) =>
+            item.diferencia !== 0 && (!branch || item.sucursal === branch),
+        )
         .map((item) => ({
           auditId: audit.id,
           fecha: audit.fecha,
@@ -201,8 +205,14 @@ export function calculateDashboardMetrics(params: {
     branch,
     now = new Date(),
   } = params;
-  const periodSales = sales.filter((sale) => isInPeriod(sale.fecha, period, now));
-  const periodBajas = bajas.filter((baja) => isInPeriod(baja.fecha, period, now));
+  const periodSales = sales.filter(
+    (sale) =>
+      isInPeriod(sale.fecha, period, now) && (!branch || sale.sucursal === branch),
+  );
+  const periodBajas = bajas.filter(
+    (baja) =>
+      isInPeriod(baja.fecha, period, now) && (!branch || baja.sucursal === branch),
+  );
 
   const stockDisponible = distributions.reduce(
     (total, distribution) => total + totalDistributionStock(distribution, branch),
@@ -231,6 +241,7 @@ export function calculateDashboardMetrics(params: {
   );
   const pendingAuditDifferences = calculateAuditAlerts(audits, {
     period,
+    branch,
     now,
   }).length;
   const deudaAllCovering = salesDebtUSD + bajasDebtUSD;
@@ -323,6 +334,7 @@ export function calculateProductStats(params: {
   sales: Sale[];
   bajas: BajaStock[];
   period: DashboardPeriod;
+  branch?: Branch;
   now?: Date;
 }): ProductStat[] {
   const {
@@ -332,14 +344,21 @@ export function calculateProductStats(params: {
     sales,
     bajas,
     period,
+    branch,
     now = new Date(),
   } = params;
-  const periodSales = sales.filter((sale) => isInPeriod(sale.fecha, period, now));
-  const periodBajas = bajas.filter((baja) => isInPeriod(baja.fecha, period, now));
+  const periodSales = sales.filter(
+    (sale) =>
+      isInPeriod(sale.fecha, period, now) && (!branch || sale.sucursal === branch),
+  );
+  const periodBajas = bajas.filter(
+    (baja) =>
+      isInPeriod(baja.fecha, period, now) && (!branch || baja.sucursal === branch),
+  );
   const days = averageSalesDays(period, periodSales, now);
   const stockByProduct = distributions.reduce<Record<string, number>>(
     (acc, distribution) => {
-      acc[distribution.productId] = totalDistributionStock(distribution);
+      acc[distribution.productId] = totalDistributionStock(distribution, branch);
       return acc;
     },
     {},
@@ -470,15 +489,17 @@ export function calculateOperationalLosses(params: {
   productsById: Record<string, Product>;
   bajas: BajaStock[];
   period: DashboardPeriod;
+  branch?: Branch;
   now?: Date;
 }): OperationalLossRow[] {
-  const { productsById, bajas, period, now = new Date() } = params;
+  const { productsById, bajas, period, branch, now = new Date() } = params;
 
   return bajas
     .filter(
       (baja) =>
         bajaTipo(baja) === "baja_sucursal" &&
-        isInPeriod(baja.fecha, period, now),
+        isInPeriod(baja.fecha, period, now) &&
+        (!branch || baja.sucursal === branch),
     )
     .map((baja) => ({
       id: baja.id,
@@ -499,6 +520,7 @@ export function calculateRecentActivity(params: {
   traslados?: TrasladoStock[];
   audits?: Audit[];
   period: DashboardPeriod;
+  branch?: Branch;
   now?: Date;
   limit?: number;
 }): RecentActivityRow[] {
@@ -510,13 +532,18 @@ export function calculateRecentActivity(params: {
     traslados = [],
     audits = [],
     period,
+    branch,
     now = new Date(),
     limit = 10,
   } = params;
 
   const rows: RecentActivityRow[] = [
     ...sales
-      .filter((sale) => isInPeriod(sale.fecha, period, now))
+      .filter(
+        (sale) =>
+          isInPeriod(sale.fecha, period, now) &&
+          (!branch || sale.sucursal === branch),
+      )
       .map((sale) => ({
         id: sale.id,
         tipo: "venta" as const,
@@ -528,7 +555,11 @@ export function calculateRecentActivity(params: {
         createdBy: sale.createdBy,
       })),
     ...ingresos
-      .filter((ingreso) => isInPeriod(ingreso.fecha, period, now))
+      .filter(
+        (ingreso) =>
+          isInPeriod(ingreso.fecha, period, now) &&
+          (!branch || ingreso.sucursal === branch),
+      )
       .map((ingreso) => ({
         id: ingreso.id,
         tipo: "ingreso" as const,
@@ -540,7 +571,11 @@ export function calculateRecentActivity(params: {
         createdBy: ingreso.createdBy,
       })),
     ...bajas
-      .filter((baja) => isInPeriod(baja.fecha, period, now))
+      .filter(
+        (baja) =>
+          isInPeriod(baja.fecha, period, now) &&
+          (!branch || baja.sucursal === branch),
+      )
       .map((baja) => {
         const tipo = bajaTipo(baja);
         const motivo = bajaMotivoLabel(baja);
@@ -558,7 +593,13 @@ export function calculateRecentActivity(params: {
         };
       }),
     ...traslados
-      .filter((traslado) => isInPeriod(traslado.fecha, period, now))
+      .filter(
+        (traslado) =>
+          isInPeriod(traslado.fecha, period, now) &&
+          (!branch ||
+            traslado.sucursalOrigen === branch ||
+            traslado.sucursalDestino === branch),
+      )
       .map((traslado) => ({
         id: traslado.id,
         tipo: "movimiento" as const,
@@ -571,7 +612,11 @@ export function calculateRecentActivity(params: {
         createdBy: traslado.createdBy,
       })),
     ...audits
-      .filter((audit) => isInPeriod(audit.fecha, period, now))
+      .filter(
+        (audit) =>
+          isInPeriod(audit.fecha, period, now) &&
+          (!branch || audit.items.some((item) => item.sucursal === branch)),
+      )
       .map((audit) => ({
         id: audit.id,
         tipo: "auditoria" as const,

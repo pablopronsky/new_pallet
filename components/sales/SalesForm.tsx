@@ -61,7 +61,7 @@ function isValidForm(form: FormState): boolean {
   return true;
 }
 
-export function SalesForm() {
+export function SalesForm({ defaultBranch }: { defaultBranch?: Branch }) {
   // useProducts() filters activo === true by default
   const { role, profile } = useAuth();
   const { products, loading: productsLoading } = useProducts();
@@ -70,7 +70,7 @@ export function SalesForm() {
     role === "vendedor" ? profile?.sucursalAsignada : undefined;
 
   const [form, setForm] = useState<FormState>(() =>
-    initialState(vendedorBranch ?? ""),
+    initialState(vendedorBranch ?? defaultBranch ?? ""),
   );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -79,6 +79,13 @@ export function SalesForm() {
     if (!vendedorBranch) return;
     setForm((f) => ({ ...f, sucursal: vendedorBranch }));
   }, [vendedorBranch]);
+
+  useEffect(() => {
+    if (vendedorBranch || !defaultBranch) return;
+    setForm((current) =>
+      current.sucursal ? current : { ...current, sucursal: defaultBranch },
+    );
+  }, [defaultBranch, vendedorBranch]);
 
   const productOptions = useMemo(() => {
     if (productsLoading) {
@@ -134,7 +141,7 @@ export function SalesForm() {
 
     try {
       await createSale(input);
-      setForm(initialState(vendedorBranch ?? ""));
+      setForm(initialState(vendedorBranch ?? defaultBranch ?? ""));
       setSuccess("Venta registrada correctamente");
     } catch (err) {
       logError("registrar venta", err);
@@ -186,6 +193,7 @@ export function SalesForm() {
           type="number"
           min={1}
           step={1}
+          inputMode="numeric"
           value={form.cajas}
           onChange={(e) => update("cajas", e.target.value)}
           required
@@ -208,6 +216,7 @@ export function SalesForm() {
           type="number"
           min={0}
           step="0.01"
+          inputMode="decimal"
           value={form.monto}
           onChange={(e) => update("monto", e.target.value)}
           required
@@ -220,6 +229,7 @@ export function SalesForm() {
             type="number"
             min={0}
             step="0.01"
+            inputMode="decimal"
             value={form.tipoCambioUSD}
             onChange={(e) => update("tipoCambioUSD", e.target.value)}
             required
@@ -256,7 +266,12 @@ export function SalesForm() {
             </div>
           )}
           <div className="flex justify-end">
-            <Button type="submit" disabled={!canSubmit} size="lg">
+            <Button
+              type="submit"
+              disabled={!canSubmit}
+              size="lg"
+              className="w-full sm:w-auto"
+            >
               {submitting ? "Guardando..." : "Registrar venta"}
             </Button>
           </div>

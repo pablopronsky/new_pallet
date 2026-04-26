@@ -11,7 +11,7 @@ export function Card({ className, children, padded = true, ...rest }: CardProps)
     <div
       className={cn(
         "rounded-xl border border-border bg-surface",
-        padded && "p-6",
+        padded && "p-4 sm:p-6",
         className,
       )}
       {...rest}
@@ -23,7 +23,13 @@ export function Card({ className, children, padded = true, ...rest }: CardProps)
 
 export function CardHeader({ className, children, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("mb-4 flex items-center justify-between", className)} {...rest}>
+    <div
+      className={cn(
+        "mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
+        className,
+      )}
+      {...rest}
+    >
       {children}
     </div>
   );

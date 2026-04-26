@@ -11,6 +11,7 @@ import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
 import { useAudits } from "@/hooks/useAudits";
 import { useAuth } from "@/hooks/useAuth";
 import { useBajas } from "@/hooks/useBajas";
+import { useBranchFilter } from "@/contexts/BranchFilterContext";
 import { useIngresos } from "@/hooks/useIngresos";
 import { useProducts } from "@/hooks/useProducts";
 import { useSalesHistory } from "@/hooks/useSalesHistory";
@@ -391,6 +392,7 @@ function FiltersCard({
   showTipo,
   showSucursal,
   fixedBranch,
+  fixedBranchHint = "Solo se muestra el historial de tu sucursal.",
   loadingProducts,
 }: {
   filters: FiltersState;
@@ -403,6 +405,7 @@ function FiltersCard({
   showTipo: boolean;
   showSucursal: boolean;
   fixedBranch?: Branch;
+  fixedBranchHint?: string;
   loadingProducts: boolean;
 }) {
   const sucursalOptions = [
@@ -456,7 +459,7 @@ function FiltersCard({
             name="fixedBranch"
             value={BRANCH_LABELS[fixedBranch]}
             readOnly
-            hint="Solo se muestra el historial de tu sucursal."
+            hint={fixedBranchHint}
           />
         ) : null}
         <Input
@@ -533,6 +536,8 @@ function HistoryTable({
 
 function AdminHistoryContent() {
   const [filters, setFilters] = useState<FiltersState>(initialFilters);
+  const { selectedBranch } = useBranchFilter();
+  const fixedBranch = selectedBranch === "all" ? undefined : selectedBranch;
   const { products, loading: productsLoading, error: productsError } =
     useProducts({ activeOnly: false });
   const { sales, loading: salesLoading, error: salesError } =
@@ -564,6 +569,10 @@ function AdminHistoryContent() {
   );
 
   const rows = useMemo(() => {
+    const effectiveFilters = {
+      ...filters,
+      sucursal: fixedBranch ?? filters.sucursal,
+    };
     const allRows: HistorialRow[] = [
       ...sales.map((sale) => saleToRow(sale, productNames)),
       ...ingresos.map((ingreso) => ingresoToRow(ingreso, productNames)),
@@ -573,11 +582,12 @@ function AdminHistoryContent() {
     ];
 
     return allRows
-      .filter((row) => rowMatchesFilters(row, filters))
+      .filter((row) => rowMatchesFilters(row, effectiveFilters))
       .sort((a, b) => b.fecha.toMillis() - a.fecha.toMillis());
   }, [
     audits,
     bajas,
+    fixedBranch,
     filters,
     ingresos,
     productNames,
@@ -620,7 +630,9 @@ function AdminHistoryContent() {
         onClear={() => setFilters(initialFilters)}
         productOptions={productOptions}
         showTipo
-        showSucursal
+        showSucursal={!fixedBranch}
+        fixedBranch={fixedBranch}
+        fixedBranchHint="Filtro global de sucursal aplicado desde la barra superior."
         loadingProducts={productsLoading}
       />
       <HistoryTable

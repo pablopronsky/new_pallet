@@ -1,23 +1,52 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
-import { ROLE_LABELS } from "@/lib/constants";
+import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { useBranchFilter } from "@/contexts/BranchFilterContext";
+import { useAuth } from "@/hooks/useAuth";
+import { BRANCH_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { BranchSelector } from "./BranchSelector";
+
+const branchFilterRoutes = [
+  "/dashboard",
+  "/dashboard/stock",
+  "/dashboard/historial",
+  "/dashboard/ventas",
+  "/dashboard/ingresos",
+  "/dashboard/bajas",
+];
+
+function usesBranchFilter(pathname: string) {
+  return branchFilterRoutes.some((route) => {
+    if (route === "/dashboard") return pathname === route;
+    return pathname === route || pathname.startsWith(`${route}/`);
+  });
+}
 
 export function Topbar() {
   const { user, profile, role, profileLoading, logout } = useAuth();
+  const pathname = usePathname();
+  const { selectedBranch, setSelectedBranch } = useBranchFilter();
+  const showAdminBranchFilter = role === "admin" && usesBranchFilter(pathname);
+  const vendedorBranch = role === "vendedor" ? profile?.sucursalAsignada : null;
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/80 px-4 backdrop-blur md:px-8">
-      <div className="flex items-center gap-3">
-        <BranchSelector />
+    <header className="sticky top-0 z-10 flex min-h-16 flex-wrap items-center justify-between gap-2 border-b border-border bg-background/80 px-3 py-2 backdrop-blur sm:flex-nowrap sm:gap-4 sm:px-4 md:px-8">
+      <div className="min-w-0 flex-1">
+        {showAdminBranchFilter ? (
+          <BranchSelector
+            value={selectedBranch}
+            onChange={setSelectedBranch}
+          />
+        ) : vendedorBranch ? (
+          <Badge tone="neutral">Sucursal: {BRANCH_LABELS[vendedorBranch]}</Badge>
+        ) : null}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
         {profileLoading ? (
-          <Badge tone="neutral">…</Badge>
+          <Badge tone="neutral">...</Badge>
         ) : role ? (
           <Badge tone="primary">{ROLE_LABELS[role]}</Badge>
         ) : user && !profile ? (
@@ -27,13 +56,13 @@ export function Topbar() {
         )}
 
         {user?.email && (
-          <div className="hidden text-right sm:block">
-            <div className="text-sm font-medium text-text-primary">
+          <div className="hidden min-w-0 text-right sm:block">
+            <div className="max-w-[13rem] truncate text-sm font-medium text-text-primary lg:max-w-none">
               {user.email}
             </div>
           </div>
         )}
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-sm font-semibold text-text-secondary">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-semibold text-text-secondary">
           {user?.email?.[0]?.toUpperCase() ?? "?"}
         </div>
         <Button variant="ghost" size="sm" onClick={() => logout()}>

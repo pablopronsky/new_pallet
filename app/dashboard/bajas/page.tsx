@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +8,8 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
+import { useBranchFilter } from "@/contexts/BranchFilterContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useBajas } from "@/hooks/useBajas";
 import { useProducts } from "@/hooks/useProducts";
 import {
@@ -64,6 +66,10 @@ function initialFormState(): FormState {
 }
 
 function BajasContent() {
+  const { role } = useAuth();
+  const { selectedBranch } = useBranchFilter();
+  const defaultBranch =
+    role === "admin" && selectedBranch !== "all" ? selectedBranch : undefined;
   const { products, loading: productsLoading } = useProducts({ activeOnly: false });
   const { bajas, loading, error, createBaja, submitting } = useBajas();
   const [form, setForm] = useState<FormState>(() => initialFormState());
@@ -199,6 +205,15 @@ function BajasContent() {
     [productById, productName],
   );
 
+  useEffect(() => {
+    if (!defaultBranch) return;
+    setForm((current) =>
+      current.productId || current.cajas || current.notas
+        ? current
+        : { ...current, sucursal: defaultBranch },
+    );
+  }, [defaultBranch]);
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
@@ -229,7 +244,7 @@ function BajasContent() {
         fecha: dateFromInput(form.fecha),
         notas: form.notas,
       });
-      setForm(initialFormState());
+      setForm({ ...initialFormState(), sucursal: defaultBranch ?? "gonnet" });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -274,6 +289,7 @@ function BajasContent() {
               type="number"
               min={1}
               step={1}
+              inputMode="numeric"
               value={form.cajas}
               onChange={(event) => update("cajas", event.target.value)}
               disabled={submitting}
@@ -340,7 +356,7 @@ function BajasContent() {
               value={form.notas}
               onChange={(event) => update("notas", event.target.value)}
               disabled={submitting}
-              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+              className="min-h-24 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-base text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:text-sm"
               placeholder="Opcional"
             />
           </div>
@@ -360,6 +376,7 @@ function BajasContent() {
           <div>
             <Button
               type="submit"
+              className="w-full sm:w-auto"
               disabled={submitting || productsLoading || !form.productId}
             >
               {submitting ? "Registrando..." : "Registrar baja"}

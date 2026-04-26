@@ -394,8 +394,8 @@ function DistributionSection({
       )}
 
       {!loading && (
-        <div className="w-full overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-left text-sm">
+        <div className="w-full max-w-full overflow-x-auto rounded-xl border border-border shadow-[inset_-16px_0_16px_-18px_rgba(255,255,255,0.35)]">
+          <table className="min-w-max w-full text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wider text-text-secondary">
               <tr>
                 <th className="px-4 py-3 font-medium">Producto</th>
@@ -432,6 +432,7 @@ function DistributionSection({
                           type="number"
                           min={0}
                           step={1}
+                          inputMode="numeric"
                           value={rowBoxes[branch] ?? 0}
                           disabled={isRowSaving}
                           onChange={(e) => {
@@ -442,7 +443,7 @@ function DistributionSection({
                               isNaN(v) || v < 0 ? 0 : v,
                             );
                           }}
-                          className="h-9 w-24 rounded-xl border border-border bg-surface-2 px-3 text-sm tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+                          className="min-h-11 w-28 rounded-xl border border-border bg-surface-2 px-3 text-base tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:text-sm"
                         />
                       </td>
                     ))}

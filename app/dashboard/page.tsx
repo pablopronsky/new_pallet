@@ -10,6 +10,7 @@ import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
 import { useAudits } from "@/hooks/useAudits";
 import { useAuth } from "@/hooks/useAuth";
 import { useBajas } from "@/hooks/useBajas";
+import { useBranchFilter } from "@/contexts/BranchFilterContext";
 import { useDistribution } from "@/hooks/useDistribution";
 import { useIngresos } from "@/hooks/useIngresos";
 import { useProducts } from "@/hooks/useProducts";
@@ -708,6 +709,8 @@ function VendedorDashboard({ branch }: { branch: Branch }) {
 
 function AdminDashboard() {
   const [period, setPeriod] = useState<DashboardPeriod>("30d");
+  const { selectedBranch } = useBranchFilter();
+  const branchFilter = selectedBranch === "all" ? undefined : selectedBranch;
   const { products, loading: productsLoading, error: productsError } =
     useProducts({ activeOnly: false });
   const {
@@ -735,8 +738,9 @@ function AdminDashboard() {
         bajas,
         audits,
         period,
+        branch: branchFilter,
       }),
-    [audits, bajas, distributions, period, productsById, sales],
+    [audits, bajas, branchFilter, distributions, period, productsById, sales],
   );
   const branchSummaries = useMemo(
     () =>
@@ -750,6 +754,13 @@ function AdminDashboard() {
       }),
     [audits, bajas, distributions, period, sales, traslados],
   );
+  const visibleBranchSummaries = useMemo(
+    () =>
+      branchFilter
+        ? branchSummaries.filter((summary) => summary.branch === branchFilter)
+        : branchSummaries,
+    [branchFilter, branchSummaries],
+  );
   const productStats = useMemo(
     () =>
       calculateProductStats({
@@ -759,12 +770,19 @@ function AdminDashboard() {
         sales,
         bajas,
         period,
+        branch: branchFilter,
       }),
-    [bajas, distributions, period, products, productsById, sales],
+    [bajas, branchFilter, distributions, period, products, productsById, sales],
   );
   const stockAlerts = useMemo(
-    () => calculateStockAlerts({ productsById, distributions, sales }),
-    [distributions, productsById, sales],
+    () =>
+      calculateStockAlerts({
+        productsById,
+        distributions,
+        sales,
+        branch: branchFilter,
+      }),
+    [branchFilter, distributions, productsById, sales],
   );
   const operationalLosses = useMemo(
     () =>
@@ -772,12 +790,13 @@ function AdminDashboard() {
         productsById,
         bajas,
         period,
+        branch: branchFilter,
       }),
-    [bajas, period, productsById],
+    [bajas, branchFilter, period, productsById],
   );
   const auditAlerts = useMemo(
-    () => calculateAuditAlerts(audits, { period }),
-    [audits, period],
+    () => calculateAuditAlerts(audits, { period, branch: branchFilter }),
+    [audits, branchFilter, period],
   );
   const recentActivity = useMemo(
     () =>
@@ -789,9 +808,19 @@ function AdminDashboard() {
         traslados,
         audits,
         period,
+        branch: branchFilter,
         limit: 10,
       }),
-    [audits, bajas, ingresos, period, productsById, sales, traslados],
+    [
+      audits,
+      bajas,
+      branchFilter,
+      ingresos,
+      period,
+      productsById,
+      sales,
+      traslados,
+    ],
   );
   const loading =
     productsLoading ||
@@ -825,6 +854,11 @@ function AdminDashboard() {
       </div>
 
       <div className="mt-4">{periodFilter(period, setPeriod)}</div>
+      <p className="mt-2 text-xs text-text-muted">
+        Sucursal:{" "}
+        {branchFilter ? BRANCH_LABELS[branchFilter] : "Todas las sucursales"}.
+        El stock es el estado vivo actual.
+      </p>
       <ErrorMessage errors={errors} />
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -852,7 +886,7 @@ function AdminDashboard() {
               ? "..."
               : `${formatNumberAR(metrics.stockDisponible)} cajas`
           }
-          hint="Stock corresponde al estado actual, no depende del periodo."
+          hint="Stock corresponde al estado actual, filtrado por sucursal si corresponde."
           tone="success"
         />
         <StatCard
@@ -873,7 +907,7 @@ function AdminDashboard() {
         />
       </div>
 
-      <BranchPerformanceTable rows={branchSummaries} />
+      <BranchPerformanceTable rows={visibleBranchSummaries} />
 
       <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
         <ProductPerformanceTable rows={productStats} />

@@ -265,5 +265,6 @@ Implementado:
 - El dashboard incluye estadísticas avanzadas solo para admin. Usa un filtro de período para métricas operativas/financieras y mantiene el stock vivo como estado actual. Los demás roles conservan dashboards simples según sus permisos.
 - El dashboard incluye estadísticas de negocio avanzadas solo para admin: rotación, días de stock, stock muerto, pérdidas operativas y alertas de inventario.
 - Los errores visibles para usuarios se traducen al español mediante `/lib/errors.ts`; los detalles técnicos se registran en consola para depuración.
+- La app está preparada para uso desde navegadores móviles. El filtro global de sucursal solo es editable por admin en pantallas donde afecta lecturas; vendedor ve solo su `sucursalAsignada`, controlador usa selectores propios de auditorías/movimientos y All Covering no ve selector de sucursal.
 - El portal de proveedor oculta intencionalmente revenue y margen en la UI y lee la colección segura `proveedorResumen`.
 - La ruta `/dashboard` está protegida del lado cliente. Agregar protección del lado servidor antes de tratarla como un límite de seguridad fuerte.

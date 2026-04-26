@@ -237,8 +237,8 @@ function AuditForm({
       </div>
 
       {!loading && (
-        <div className="w-full overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-left text-sm">
+        <div className="w-full max-w-full overflow-x-auto rounded-xl border border-border shadow-[inset_-16px_0_16px_-18px_rgba(255,255,255,0.35)]">
+          <table className="min-w-max w-full text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wider text-text-secondary">
               <tr>
                 <th className="px-4 py-3 font-medium">Producto</th>
@@ -292,7 +292,7 @@ function AuditForm({
                               counted: e.target.value,
                             })
                           }
-                          className="h-9 w-24 rounded-xl border border-border bg-surface-2 px-3 text-right text-sm tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+                          className="min-h-11 w-28 rounded-xl border border-border bg-surface-2 px-3 text-right text-base tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:text-sm"
                         />
                         {sys === 0 && (
                           <span className="mt-1 block text-right text-[11px] text-text-muted">
@@ -322,7 +322,7 @@ function AuditForm({
                               notas: e.target.value,
                             })
                           }
-                          className="h-9 w-full min-w-[10rem] rounded-xl border border-border bg-surface-2 px-3 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+                          className="min-h-11 w-full min-w-[10rem] rounded-xl border border-border bg-surface-2 px-3 text-base text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:text-sm"
                         />
                       </td>
                     </tr>
@@ -343,13 +343,17 @@ function AuditForm({
             onChange={(e) => setGeneralNotas(e.target.value)}
             disabled={submitting}
             rows={2}
-            className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+            className="min-h-24 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-base text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:text-sm"
             placeholder="Comentarios sobre la auditoría (opcional)"
           />
         </label>
 
         <div className="flex justify-end">
-          <Button onClick={handleSubmit} disabled={submitting || loading}>
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || loading}
+            className="w-full sm:w-auto"
+          >
             {submitting ? "Guardando…" : "Registrar auditoría"}
           </Button>
         </div>

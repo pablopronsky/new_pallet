@@ -55,17 +55,19 @@ export function BottomNav() {
   const items = role ? itemsByRole[role] : fallbackItems;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface md:hidden">
-      <ul className="flex">
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 backdrop-blur md:hidden">
+      <ul className="flex min-h-16 gap-1 overflow-x-auto px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           return (
-            <li key={item.href} className="flex-1">
+            <li key={item.href} className="shrink-0">
               <Link
                 href={item.href}
                 className={cn(
-                  "flex h-14 items-center justify-center px-1 text-center text-xs font-medium transition-colors",
-                  active ? "text-primary-light" : "text-text-secondary",
+                  "flex min-h-12 min-w-[4.75rem] items-center justify-center rounded-xl px-3 text-center text-xs font-medium transition-colors",
+                  active
+                    ? "bg-primary/15 text-primary-light"
+                    : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
                 )}
               >
                 {item.label}

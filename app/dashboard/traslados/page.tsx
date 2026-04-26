@@ -241,6 +241,7 @@ function TrasladosContent() {
               type="number"
               min={1}
               step={1}
+              inputMode="numeric"
               value={form.cajas}
               onChange={(event) => update("cajas", event.target.value)}
               disabled={submitting}
@@ -278,7 +279,7 @@ function TrasladosContent() {
               value={form.notas}
               onChange={(event) => update("notas", event.target.value)}
               disabled={submitting}
-              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+              className="min-h-24 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-base text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:text-sm"
               placeholder="Opcional"
             />
           </div>
@@ -301,6 +302,7 @@ function TrasladosContent() {
           <div>
             <Button
               type="submit"
+              className="w-full sm:w-auto"
               disabled={
                 submitting ||
                 productsLoading ||

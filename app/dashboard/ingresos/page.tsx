@@ -8,6 +8,8 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
+import { useBranchFilter } from "@/contexts/BranchFilterContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useIngresos } from "@/hooks/useIngresos";
 import { useProducts } from "@/hooks/useProducts";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
@@ -49,6 +51,10 @@ function initialFormState(): FormState {
 }
 
 function IngresosContent() {
+  const { role } = useAuth();
+  const { selectedBranch } = useBranchFilter();
+  const defaultBranch =
+    role === "admin" && selectedBranch !== "all" ? selectedBranch : undefined;
   const { products, loading: productsLoading } = useProducts({ activeOnly: false });
   const { ingresos, loading, error, createIngreso, submitting } = useIngresos();
   const [form, setForm] = useState<FormState>(() => initialFormState());
@@ -77,6 +83,18 @@ function IngresosContent() {
           },
     );
   }, [selectedProduct]);
+
+  useEffect(() => {
+    if (!defaultBranch) return;
+    setForm((current) =>
+      current.productId ||
+      current.cajas ||
+      current.costoUSDPorCaja ||
+      current.notas
+        ? current
+        : { ...current, sucursal: defaultBranch },
+    );
+  }, [defaultBranch]);
 
   const productOptions = useMemo(
     () => [
@@ -219,7 +237,7 @@ function IngresosContent() {
         fecha: dateFromInput(form.fecha),
         notas: form.notas,
       });
-      setForm(initialFormState());
+      setForm({ ...initialFormState(), sucursal: defaultBranch ?? "gonnet" });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -264,6 +282,7 @@ function IngresosContent() {
               type="number"
               min={1}
               step={1}
+              inputMode="numeric"
               value={form.cajas}
               onChange={(event) => update("cajas", event.target.value)}
               disabled={submitting}
@@ -274,6 +293,7 @@ function IngresosContent() {
               type="number"
               min={0}
               step={0.01}
+              inputMode="decimal"
               value={form.costoUSDPorCaja}
               onChange={(event) =>
                 update("costoUSDPorCaja", event.target.value)
@@ -311,7 +331,7 @@ function IngresosContent() {
               value={form.notas}
               onChange={(event) => update("notas", event.target.value)}
               disabled={submitting}
-              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+              className="min-h-24 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-base text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:text-sm"
               placeholder="Opcional"
             />
           </div>
@@ -331,6 +351,7 @@ function IngresosContent() {
           <div>
             <Button
               type="submit"
+              className="w-full sm:w-auto"
               disabled={
                 submitting ||
                 productsLoading ||
