@@ -280,7 +280,7 @@ service cloud.firestore {
     match /ingresos/{ingresoId} {
       allow read: if isAdmin();
 
-      allow create: if isAdmin();
+      allow create: if isAdmin() && isValidIngresoCreate();
 
       allow update: if false;
       allow delete: if isAdmin();
@@ -323,7 +323,7 @@ service cloud.firestore {
       conviene volver esto a false.
     */
     match /{document=**} {
-      allow read, write: if isAdmin();
-    }
+  allow read, write: if false;
+}
   }
 }

@@ -1,6 +1,6 @@
-# np-stock
+# NP Stock
 
-Next.js 14 (App Router) + TypeScript + Tailwind CSS, with Firebase Authentication and Firestore.
+Next.js 14 (App Router) + TypeScript + Tailwind CSS, con Firebase Authentication y Firestore.
 
 ## Stack
 
@@ -9,112 +9,114 @@ Next.js 14 (App Router) + TypeScript + Tailwind CSS, with Firebase Authenticatio
 - Tailwind CSS
 - Firebase (Auth + Firestore)
 
-## Project structure
+## Estructura del proyecto
 
 ```text
-/app
-  /login         # login page
-  /dashboard     # protected dashboard
-  /api           # (empty, reserved for route handlers)
-/components      # UI + AuthProvider + layout shell
-/hooks           # auth + sales/data hooks
-/lib             # firebase.ts, constants.ts, calculations.ts, firestore.ts, formatters.ts
-/scripts         # seed.ts + create-users.ts
-/types           # domain + auth types
-/styles          # globals.css (Tailwind)
+./app
+  /login         # página de login
+  /dashboard     # dashboard protegido
+  /api           # (vacío, reservado para route handlers)
+./components      # UI + AuthProvider + layout shell
+./hooks           # hooks de auth + ventas/datos
+./lib             # firebase.ts, constants.ts, calculations.ts, firestore.ts, formatters.ts
+./scripts         # seed.ts + create-users.ts
+./types           # tipos de dominio + auth
+./styles          # globals.css (Tailwind)
+./package.json    # scripts npm y dependencias
 ```
 
-## Domain model
+## Modelo de dominio
 
-np-stock tracks consignment inventory from *All Covering* distributed to three NP branches.
+NP Stock registra inventario en consignación de *All Covering* distribuido en tres sucursales de NP.
 
-- **Role** - `admin` | `controlador` | `vendedor` | `allcovering`. Controls permissions.
-- **Branch** - `gonnet` | `laplata` | `quilmes`. Physical locations that hold stock.
-- **Product** - SKU catalog metadata: name, category (`SPC` | `Laminado` | `SPC Budget`), `costoUSD`, `precioVentaUSD`, `esBudget`, `activo`. Does not store stock quantities.
-- **ProductDistribution** (`distribucion/{productId}`) - current boxes allocated per branch in `cajasPorSucursal`.
-- **Sale** - individual sale: product, branch, boxes, `montoUSD`, `tipoCambioUSD`, `montoARS`, date, seller.
-- **IngresoStock** (`ingresos/{id}`) - incoming merchandise entry with branch, boxes, `costoUSDPorCaja`, and `costoTotalUSD`.
-- **BajaStock** (`bajas/{id}`) - non-sale stock exit/correction with branch, boxes, type, optional reason, debt flag, date, creator, and optional notes.
-- **TrasladoStock** (`traslados/{id}`) - branch-to-branch movement with product, origin, destination, boxes, date, creator, and optional notes.
-- **ProviderSnapshot** (`proveedorResumen/{productId}`) - supplier-safe aggregate for All Covering with sold boxes, remaining boxes, and debt only.
-- **Audit** - audit record with per-product/per-branch counts and differences.
-- **AppConfig** - singleton config doc with `tipoCambioUSD`.
-- **UserProfile** - doc keyed by Firebase Auth uid with `role`, `activo`, and optional `sucursalAsignada`.
+- **Role** - `admin` | `controlador` | `vendedor` | `allcovering`. Controla los permisos.
+- **Branch** - `gonnet` | `laplata` | `quilmes`. Ubicaciones físicas que tienen stock.
+- **Product** - metadatos del catálogo SKU: nombre, categoría (`SPC` | `Laminado` | `SPC Budget`), `costoUSD`, `precioVentaUSD`, `esBudget`, `activo`. No guarda cantidades de stock.
+- **ProductDistribution** (`distribucion/{productId}`) - cajas actuales asignadas por sucursal en `cajasPorSucursal`.
+- **Sale** - venta individual: producto, sucursal, cajas, `montoUSD`, `tipoCambioUSD`, `montoARS`, fecha y vendedor.
+- **IngresoStock** (`ingresos/{id}`) - ingreso de mercadería con sucursal, cajas, `costoUSDPorCaja` y `costoTotalUSD`.
+- **BajaStock** (`bajas/{id}`) - salida/corrección de stock no vinculada a venta con sucursal, cajas, tipo, motivo opcional, indicador de deuda, fecha, creador y notas opcionales.
+- **TrasladoStock** (`traslados/{id}`) - movimiento entre sucursales con producto, origen, destino, cajas, fecha, creador y notas opcionales.
+- **ProviderSnapshot** (`proveedorResumen/{productId}`) - agregado seguro para el proveedor All Covering con cajas vendidas, cajas restantes y deuda únicamente.
+- **Audit** - registro de auditoría con conteos y diferencias por producto y por sucursal.
+- **AppConfig** - documento único de configuración con `tipoCambioUSD`.
+- **UserProfile** - documento identificado por el uid de Firebase Auth con `role`, `activo` y `sucursalAsignada` opcional.
 
-## Calculated values
+## Valores calculados
 
-These values are derived at read time and should not be persisted:
+Estos valores se derivan en tiempo de lectura y no deben persistirse:
 
-- `calculateSoldBoxesByProduct(sales)` - sum of `cajas` per product from sales.
-- `calculateTotalAvailableBoxes(distribution)` - sum of boxes across branches from `distribucion`.
-- `calculateRemainingBoxes(totalAvailableBoxes, soldBoxes)` - available minus sold, floored at 0.
-- `calculateDebtUSD(product, soldBoxes)` - debt to All Covering = `soldBoxes * product.costoUSD`.
-- `calculateRevenueUSD(sales)` - sum of `montoUSD`.
-- `calculateRevenueByProduct(sales)` - per-product `montoUSD` totals.
+- `calculateSoldBoxesByProduct(sales)` - suma de `cajas` por producto a partir de las ventas.
+- `calculateTotalAvailableBoxes(distribution)` - suma de cajas entre sucursales a partir de `distribucion`.
+- `calculateRemainingBoxes(totalAvailableBoxes, soldBoxes)` - disponible menos vendido, con mínimo 0.
+- `calculateDebtUSD(product, soldBoxes)` - deuda con All Covering = `soldBoxes * product.costoUSD`.
+- `calculateRevenueUSD(sales)` - suma de `montoUSD`.
+- `calculateRevenueByProduct(sales)` - totales de `montoUSD` por producto.
 - `calculateGrossProfitUSD(product, soldBoxes, revenueUSD)` - `revenue - debt`.
 - `calculateSellThrough(soldBoxes, remainingBoxes)` - `soldBoxes / (soldBoxes + remainingBoxes)`.
-- `validateStockAvailability(...)` - throws when a sale would exceed available stock.
+- `validateStockAvailability(...)` - lanza error cuando una venta supera el stock disponible.
 
-Stock quantity always flows from `ProductDistribution.cajasPorSucursal`, never from `Product`.
+La cantidad de stock siempre sale de `ProductDistribution.cajasPorSucursal`, nunca de `Product`.
 
-## Stock model
+## Modelo de stock
 
-The three core collections have distinct responsibilities:
+Las colecciones principales tienen responsabilidades distintas:
 
-- **`productos/{id}`** - product metadata only. No stock quantity.
-- **`distribucion/{productId}.cajasPorSucursal`** - live remaining stock per branch.
-- **`ventas/{id}`** - historical sale records used for sold totals, debt, and revenue calculations.
-- **`ingresos/{id}`** - historical incoming stock records. These store cost in USD per box and total USD cost. ARS is not used for ingresos; ARS is only used for customer sales conversion.
-- **`bajas/{id}`** - historical non-sale exits/corrections. Creating a baja decreases live stock in `distribucion` and creates baja history only; it does not create `ventas` or affect customer revenue. `devolucion_proveedor` is for unsellable merchandise returned to All Covering and does not generate debt. `baja_sucursal` is for damaged, opened sample, lost, broken, or branch-consumed product and does generate debt to All Covering.
-- **`traslados/{id}`** - historical branch-to-branch movements. Creating a traslado subtracts boxes from the origin branch and adds the same boxes to the destination branch, so global stock does not change.
+- **`productos/{id}`** - solo metadatos del producto. No contiene cantidades de stock.
+- **`distribucion/{productId}.cajasPorSucursal`** - stock vivo restante por sucursal.
+- **`ventas/{id}`** - registros históricos de venta usados para calcular vendidos, deuda y revenue.
+- **`ingresos/{id}`** - registros históricos de ingreso de stock. Crear un ingreso aumenta el stock vivo en `distribucion`. Guardan costo en USD por caja y costo total en USD. ARS no se usa en ingresos; ARS se usa solo para la conversión en ventas a clientes.
+- **`bajas/{id}`** - registros históricos de salidas/correcciones no vinculadas a ventas. Crear una baja disminuye el stock vivo en `distribucion` y genera historial de baja únicamente; no crea `ventas` ni afecta revenue de clientes. `devolucion_proveedor` se usa para mercadería no vendible devuelta a All Covering y no genera deuda. `baja_sucursal` se usa para producto dañado, abierto como muestra, perdido, roto o consumido por la sucursal y sí genera deuda con All Covering.
+- **`traslados/{id}`** - registros históricos de movimientos entre sucursales. Crear un traslado descuenta cajas del origen y suma la misma cantidad en el destino, por lo que el stock global no cambia.
+- **`auditorias/{id}`** - controles físicos de stock. Las auditorías no modifican stock.
 
-### Flow
+### Flujo
 
-1. `useSales.createSale` runs a Firestore transaction.
-2. The assigned branch stock is decremented in `distribucion.cajasPorSucursal`.
-3. A `ventas` document is written with the sale snapshot.
+1. `useSales.createSale` ejecuta una transacción de Firestore.
+2. Se descuenta el stock de la sucursal asignada en `distribucion.cajasPorSucursal`.
+3. Se escribe un documento en `ventas` con la foto de la venta.
 
-`distribucion` already reflects past sales. Do not subtract `ventas` from `distribucion` again on read.
+`distribucion` ya refleja las ventas pasadas. No hay que restar `ventas` de `distribucion` nuevamente al leer.
 
-## Seed the database
+## Seed de la base de datos
 
-The seed script creates the initial products, matching distribution docs, and the `config/app` document. It is idempotent and uses the Firebase Admin SDK.
+El script de seed crea los productos iniciales, los documentos de distribución correspondientes y el documento `config/app`. Es idempotente y usa Firebase Admin SDK.
 
 ```bash
 npm install
 npm run seed
 ```
 
-Requires `GOOGLE_APPLICATION_CREDENTIALS` pointing to a Firebase service account JSON file. Never commit the service account JSON file to the repository.
+Requiere `GOOGLE_APPLICATION_CREDENTIALS` apuntando a un archivo JSON de service account de Firebase. Nunca subas ese archivo JSON al repositorio.
 
-`.env.local` is still required to run the app locally, but it is not used by `npm run seed`.
+`.env.local` sigue siendo necesario para ejecutar la app localmente, pero no se usa en `npm run seed`.
 
-## Setup
+## Configuración
 
-1. Install dependencies:
+1. Instalar dependencias:
 
 ```bash
 npm install
 ```
 
-2. Copy environment variables:
+2. Copiar variables de entorno:
 
 ```bash
 cp .env.example .env.local
 ```
 
-3. Fill in all `NEXT_PUBLIC_FIREBASE_*` values from your Firebase project settings.
-4. In Firebase Authentication, enable Email/Password sign-in.
+3. Completar todos los valores `NEXT_PUBLIC_FIREBASE_*` con los datos de tu proyecto Firebase.
+4. En Firebase Authentication, habilitar Email/Password sign-in.
 
-## Setup users
+## Configuración de usuarios
 
-Use the Firebase Admin seed script to create or update the current NP Stock users:
+Usar el script de seed con Firebase Admin para crear o actualizar los usuarios actuales de NP Stock:
 
 ```bash
 npm run setup:users
 ```
 
-Required environment variables:
+Variables de entorno requeridas:
 
 - `GOOGLE_APPLICATION_CREDENTIALS`
 - `ADMIN_PASSWORD`
@@ -124,15 +126,15 @@ Required environment variables:
 - `LAPLATA_PASSWORD`
 - `ALLCOVERING_PASSWORD`
 
-`GOOGLE_APPLICATION_CREDENTIALS` must point to a Firebase service account JSON file. Never commit the service account JSON file to the repository.
+`GOOGLE_APPLICATION_CREDENTIALS` debe apuntar a un archivo JSON de service account de Firebase. Nunca subas ese archivo JSON al repositorio.
 
-## Run locally
+## Ejecutar localmente
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Abrir [http://localhost:3000](http://localhost:3000).
 
 Type-check:
 
@@ -140,29 +142,29 @@ Type-check:
 npm run type-check
 ```
 
-## Deploy to Netlify
+## Deploy en Netlify
 
-1. Push this repo to GitHub/GitLab/Bitbucket.
-2. In Netlify, import the existing project.
-3. Netlify will auto-detect Next.js and use `npm run build`.
-4. Add all `NEXT_PUBLIC_FIREBASE_*` variables in Netlify environment settings.
-5. Trigger a deploy.
+1. Subir este repo a GitHub/GitLab/Bitbucket.
+2. En Netlify, importar el proyecto existente.
+3. Netlify detectará Next.js automáticamente y usará `npm run build`.
+4. Agregar todas las variables `NEXT_PUBLIC_FIREBASE_*` en la configuración de entorno de Netlify.
+5. Disparar un deploy.
 
-## Deploy Firestore rules
+## Deploy de reglas Firestore
 
-Install the Firebase CLI if needed:
+Instalar Firebase CLI si hace falta:
 
 ```bash
 npm install -g firebase-tools
 ```
 
-Log in to Firebase:
+Iniciar sesión en Firebase:
 
 ```bash
 firebase login
 ```
 
-Deploy only Firestore rules:
+Deploy solo de reglas Firestore:
 
 ```bash
 firebase deploy --only firestore:rules
@@ -170,7 +172,7 @@ firebase deploy --only firestore:rules
 
 ## Exportar
 
-Exportar is admin only and downloads CSV files. Available exports:
+Exportar es solo admin y descarga archivos CSV. Exportaciones disponibles:
 
 - ventas
 - ingresos
@@ -181,13 +183,11 @@ Exportar is admin only and downloads CSV files. Available exports:
 - stock actual
 - proveedor / All Covering
 
-## Usuarios
+## Roles y control de acceso
 
-Usuarios is admin only and edits Firestore profiles in `users/{uid}`. It does not create Firebase Authentication users, delete Firebase Authentication users, or change Auth email/password. New users are still created with `npm run setup:users` or in Firebase Authentication.
+`AuthProvider` expone `profile` y `role` junto con el usuario de Firebase. `RoleGuard` se usa para restringir el acceso en la UI.
 
-## Roles & access control
-
-`AuthProvider` exposes `profile` and `role` alongside the Firebase user. `RoleGuard` is used to gate UI access.
+Usuarios es solo admin y edita perfiles de Firestore en `users/{uid}`. No crea usuarios de Firebase Authentication, no elimina usuarios de Firebase Authentication y no cambia email/password de Auth. Los usuarios nuevos se siguen creando con `npm run setup:users` o desde Firebase Authentication.
 
 ### Current roles
 
@@ -198,49 +198,49 @@ Usuarios is admin only and edits Firestore profiles in `users/{uid}`. It does no
 
 ### Controlador
 
-- Can access Dashboard, Auditorías, and Movimientos.
-- Can read and create `auditorias`.
-- Can access Movimientos and create `traslados`.
-- Reads `productos` and `distribucion` only to perform audits and branch movements.
-- Cannot sell, create ingresos/bajas, read sales history, or access configuration/provider/admin areas.
+- Puede acceder a Dashboard, Auditorías y Movimientos.
+- Puede leer y crear `auditorias`.
+- Puede acceder a Movimientos y crear `traslados`.
+- Lee `productos` y `distribucion` solo para realizar auditorías y movimientos entre sucursales.
+- No puede vender, crear ingresos/bajas, leer historial de ventas ni acceder a áreas de configuración/proveedor/admin.
 
 ### Vendedor
 
-- Has `sucursalAsignada` in `users/{uid}`.
-- Can sell only from the assigned branch.
-- Can see only assigned branch sales history.
-- Cannot access stock/configuration management, audits, provider portal, or admin areas.
+- Tiene `sucursalAsignada` en `users/{uid}`.
+- Puede vender solo desde la sucursal asignada.
+- Puede ver solo el historial de ventas de su sucursal asignada.
+- No puede acceder a gestión de stock/configuración, auditorías, portal de proveedor ni áreas admin.
 
-The current sales hook also forces a `vendedor` sale to use the assigned branch, even if another branch is submitted from the client.
+El hook actual de ventas también fuerza que una venta de `vendedor` use la sucursal asignada, incluso si el cliente envía otra sucursal.
 
 ### All Covering
 
-- Read-only supplier portal role.
-- Reads only `proveedorResumen` plus its own `users/{uid}` profile.
-- Sees debt, sold boxes, and remaining boxes from supplier-safe aggregate docs.
-- Does not see UI revenue, margin, or sale prices.
+- Rol de portal de proveedor en solo lectura.
+- Lee únicamente `proveedorResumen` más su propio perfil `users/{uid}`.
+- Ve deuda, cajas vendidas y cajas restantes desde documentos agregados seguros para proveedor.
+- No ve revenue, margen ni precios de venta en la UI.
 
-The provider portal does not read raw `ventas`, `productos`, `distribucion`, `config`, `auditorias`, or other users.
+El portal de proveedor no lee `ventas`, `productos`, `distribucion`, `config`, `auditorias` ni otros usuarios en crudo.
 
-## Firestore rules summary
+## Resumen de reglas Firestore
 
-Rules live in [firestore.rules](./firestore.rules).
+Las reglas viven en [firestore.rules](./firestore.rules).
 
-- `users/{uid}` - read: same user or admin. Write: admin only.
-- `productos/{productId}` - read: `admin`, `controlador`, `vendedor`. Controlador reads this only for audits. Write: admin only.
-- `distribucion/{productId}` - read: `admin`, `controlador`, `vendedor`. Controlador reads this only for audits/movements and may update it only when moving stock without changing total product stock. Write: admin, plus vendedor update only when decreasing assigned branch stock during sale creation.
-- `ventas/{saleId}` - read/create: admin, plus vendedor only for their assigned branch. Update/delete: admin only.
-- `ingresos/{ingresoId}` - read/create/delete: admin only. Update: denied.
-- `bajas/{bajaId}` - read/create/delete: admin only. Update: denied.
-- `traslados/{trasladoId}` - read/create: admin or controlador. Delete: admin only. Update: denied.
-- `proveedorResumen/{productId}` - read: admin or allcovering. Write: admin only.
-- `auditorias/{auditId}` - read/create: admin or controlador. Update/delete: admin only.
-- `config/{docId}` - read: admin or vendedor. Write: admin only.
-- Any other path - denied.
+- `users/{uid}` - lectura: mismo usuario o admin. Escritura: solo admin.
+- `productos/{productId}` - lectura: `admin`, `controlador`, `vendedor`. `controlador` lee esto solo para auditorías. Escritura: solo admin.
+- `distribucion/{productId}` - lectura: `admin`, `controlador`, `vendedor`. `controlador` lee esto solo para auditorías/movimientos y puede actualizarlo solo cuando mueve stock sin cambiar el total del producto. Escritura: admin, más actualización de vendedor solo al disminuir stock de su sucursal asignada durante la creación de una venta.
+- `ventas/{saleId}` - lectura/creación: admin, más vendedor solo para su sucursal asignada. Update/delete: solo admin.
+- `ingresos/{ingresoId}` - lectura/creación/delete: solo admin. Update: denegado.
+- `bajas/{bajaId}` - lectura/creación/delete: solo admin. Update: denegado.
+- `traslados/{trasladoId}` - lectura/creación: admin o controlador. Delete: solo admin. Update: denegado.
+- `proveedorResumen/{productId}` - lectura: admin o allcovering. Escritura: solo admin.
+- `auditorias/{auditId}` - lectura/creación: admin o controlador. Update/delete: solo admin.
+- `config/{docId}` - lectura: admin o vendedor. Escritura: solo admin.
+- Cualquier otra ruta - denegada.
 
-## Project status
+## Estado del proyecto
 
-Implemented:
+Implementado:
 
 - auth
 - role profiles
@@ -258,8 +258,8 @@ Implemented:
 - supplier-safe provider snapshot
 - setup users script
 
-## Notes
+## Notas
 
-- Calculated values such as debt, revenue, profit, remaining stock, and sell-through are derived from current documents at read time.
-- The provider portal intentionally hides UI revenue and margin and reads the supplier-safe `proveedorResumen` collection.
-- The `/dashboard` route is protected client-side. Add server-side protection before treating it as a strong security boundary.
+- Los valores calculados como deuda, revenue, profit, stock restante y sell-through se derivan de los documentos actuales en tiempo de lectura.
+- El portal de proveedor oculta intencionalmente revenue y margen en la UI y lee la colección segura `proveedorResumen`.
+- La ruta `/dashboard` está protegida del lado cliente. Agregar protección del lado servidor antes de tratarla como un límite de seguridad fuerte.
