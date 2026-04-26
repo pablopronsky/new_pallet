@@ -148,6 +148,26 @@ npm run type-check
 4. Add all `NEXT_PUBLIC_FIREBASE_*` variables in Netlify environment settings.
 5. Trigger a deploy.
 
+## Deploy Firestore rules
+
+Install the Firebase CLI if needed:
+
+```bash
+npm install -g firebase-tools
+```
+
+Log in to Firebase:
+
+```bash
+firebase login
+```
+
+Deploy only Firestore rules:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
 ## Roles & access control
 
 `AuthProvider` exposes `profile` and `role` alongside the Firebase user. `RoleGuard` is used to gate UI access.
