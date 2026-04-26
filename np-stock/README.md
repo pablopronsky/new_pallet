@@ -168,6 +168,19 @@ Deploy only Firestore rules:
 firebase deploy --only firestore:rules
 ```
 
+## Exportar
+
+Exportar is admin only and downloads CSV files. Available exports:
+
+- ventas
+- ingresos
+- bajas
+- movimientos
+- auditorías resumen
+- auditorías detalle
+- stock actual
+- proveedor / All Covering
+
 ## Roles & access control
 
 `AuthProvider` exposes `profile` and `role` alongside the Firebase user. `RoleGuard` is used to gate UI access.
@@ -233,6 +246,7 @@ Implemented:
 - bajas
 - movimientos/traslados
 - unified operational history for ventas, ingresos, bajas, movimientos, and auditorías where role allows
+- CSV exports for admin
 - configuration
 - audits
 - provider portal
