@@ -34,7 +34,7 @@ np-stock tracks consignment inventory from *All Covering* distributed to three N
 - **ProductDistribution** (`distribucion/{productId}`) - current boxes allocated per branch in `cajasPorSucursal`.
 - **Sale** - individual sale: product, branch, boxes, `montoUSD`, `tipoCambioUSD`, `montoARS`, date, seller.
 - **IngresoStock** (`ingresos/{id}`) - incoming merchandise entry with branch, boxes, `costoUSDPorCaja`, and `costoTotalUSD`.
-- **BajaStock** (`bajas/{id}`) - non-sale stock exit/correction with branch, boxes, reason, date, creator, and optional notes.
+- **BajaStock** (`bajas/{id}`) - non-sale stock exit/correction with branch, boxes, type, optional reason, debt flag, date, creator, and optional notes.
 - **TrasladoStock** (`traslados/{id}`) - branch-to-branch movement with product, origin, destination, boxes, date, creator, and optional notes.
 - **ProviderSnapshot** (`proveedorResumen/{productId}`) - supplier-safe aggregate for All Covering with sold boxes, remaining boxes, and debt only.
 - **Audit** - audit record with per-product/per-branch counts and differences.
@@ -65,7 +65,7 @@ The three core collections have distinct responsibilities:
 - **`distribucion/{productId}.cajasPorSucursal`** - live remaining stock per branch.
 - **`ventas/{id}`** - historical sale records used for sold totals, debt, and revenue calculations.
 - **`ingresos/{id}`** - historical incoming stock records. These store cost in USD per box and total USD cost. ARS is not used for ingresos; ARS is only used for customer sales conversion.
-- **`bajas/{id}`** - historical non-sale exits/corrections. Creating a baja decreases live stock in `distribucion` and creates baja history only; it does not create `ventas` or affect customer revenue.
+- **`bajas/{id}`** - historical non-sale exits/corrections. Creating a baja decreases live stock in `distribucion` and creates baja history only; it does not create `ventas` or affect customer revenue. `devolucion_proveedor` is for unsellable merchandise returned to All Covering and does not generate debt. `baja_sucursal` is for damaged, opened sample, lost, broken, or branch-consumed product and does generate debt to All Covering.
 - **`traslados/{id}`** - historical branch-to-branch movements. Creating a traslado subtracts boxes from the origin branch and adds the same boxes to the destination branch, so global stock does not change.
 
 ### Flow

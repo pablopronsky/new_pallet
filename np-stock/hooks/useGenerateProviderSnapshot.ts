@@ -3,7 +3,9 @@
 import { useCallback, useState } from "react";
 import { getDocs, serverTimestamp, writeBatch } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
+import { bajaDebtUSD } from "@/lib/bajas";
 import {
+  bajasCollection,
   distributionCollection,
   productsCollection,
   providerSnapshotDoc,
@@ -37,13 +39,22 @@ export function useGenerateProviderSnapshot(): UseGenerateProviderSnapshotResult
     setError(null);
 
     try {
-      const [productsSnap, distributionsSnap, salesSnap] = await Promise.all([
+      const [productsSnap, distributionsSnap, salesSnap, bajasSnap] =
+        await Promise.all([
         getDocs(productsCollection()),
         getDocs(distributionCollection()),
         getDocs(salesCollection()),
+        getDocs(bajasCollection()),
       ]);
 
       const products = productsSnap.docs.map((doc) => doc.data());
+      const productById = products.reduce<Record<string, (typeof products)[number]>>(
+        (acc, product) => {
+          acc[product.id] = product;
+          return acc;
+        },
+        {},
+      );
       const distributionsByProduct = distributionsSnap.docs.reduce<
         Record<string, ProductDistribution>
       >((acc, doc) => {
@@ -53,6 +64,16 @@ export function useGenerateProviderSnapshot(): UseGenerateProviderSnapshotResult
       }, {});
       const soldByProduct = calculateSoldBoxesByProduct(
         salesSnap.docs.map((doc) => doc.data()),
+      );
+      const bajaDebtByProduct = bajasSnap.docs.reduce<Record<string, number>>(
+        (acc, doc) => {
+          const baja = doc.data();
+          acc[baja.productId] =
+            (acc[baja.productId] ?? 0) +
+            bajaDebtUSD(baja, productById[baja.productId]);
+          return acc;
+        },
+        {},
       );
 
       const batch = writeBatch(db);
@@ -71,7 +92,9 @@ export function useGenerateProviderSnapshot(): UseGenerateProviderSnapshotResult
           esBudget: product.esBudget,
           cajasVendidas,
           cajasRestantes,
-          deudaUSD: calculateDebtUSD(product, cajasVendidas),
+          deudaUSD:
+            calculateDebtUSD(product, cajasVendidas) +
+            (bajaDebtByProduct[product.id] ?? 0),
           updatedAt: serverTimestamp(),
         });
       }

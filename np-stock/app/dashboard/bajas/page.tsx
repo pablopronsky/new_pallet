@@ -10,28 +10,29 @@ import { Select } from "@/components/ui/Select";
 import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
 import { useBajas } from "@/hooks/useBajas";
 import { useProducts } from "@/hooks/useProducts";
+import {
+  BAJA_MOTIVO_LABELS,
+  BAJA_MOTIVOS,
+  BAJA_TIPO_LABELS,
+  bajaDebtUSD,
+  bajaMotivoLabel,
+  bajaTipo,
+} from "@/lib/bajas";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
-import { formatDateAR, formatNumberAR } from "@/lib/formatters";
-import type { BajaMotivo, BajaStock, Branch } from "@/types/domain";
+import { formatDateAR, formatNumberAR, formatUSD } from "@/lib/formatters";
+import type { BajaMotivo, BajaStock, BajaTipo, Branch } from "@/types/domain";
 
-const MOTIVO_LABELS: Record<BajaMotivo, string> = {
-  rotura: "Rotura",
-  perdida: "Perdida",
-  ajuste: "Ajuste",
-  devolucion_proveedor: "Devolucion proveedor",
-  otro: "Otro",
-};
-
-const MOTIVO_OPTIONS = Object.entries(MOTIVO_LABELS).map(([value, label]) => ({
+const MOTIVO_OPTIONS = BAJA_MOTIVOS.map((value) => ({
   value,
-  label,
+  label: BAJA_MOTIVO_LABELS[value],
 }));
 
 interface FormState {
   productId: string;
   sucursal: Branch;
   cajas: string;
-  motivo: BajaMotivo;
+  tipo: BajaTipo;
+  motivo: BajaMotivo | "";
   fecha: string;
   notas: string;
 }
@@ -54,7 +55,8 @@ function initialFormState(): FormState {
     productId: "",
     sucursal: "gonnet",
     cajas: "",
-    motivo: "ajuste",
+    tipo: "devolucion_proveedor",
+    motivo: "",
     fecha: todayInputValue(),
     notas: "",
   };
@@ -72,6 +74,23 @@ function BajasContent() {
     for (const product of products) map[product.id] = product.nombre;
     return map;
   }, [products]);
+
+  const productById = useMemo(() => {
+    const map = new Map(products.map((product) => [product.id, product]));
+    return map;
+  }, [products]);
+
+  const selectedProduct = form.productId
+    ? productById.get(form.productId)
+    : undefined;
+  const parsedCajas = Number(form.cajas);
+  const estimatedDebt =
+    form.tipo === "baja_sucursal" &&
+    Number.isFinite(parsedCajas) &&
+    parsedCajas > 0 &&
+    selectedProduct
+      ? parsedCajas * selectedProduct.costoUSD
+      : 0;
 
   const productOptions = useMemo(
     () => [
@@ -107,6 +126,18 @@ function BajasContent() {
         ),
       },
       {
+        key: "tipo",
+        header: "Tipo",
+        render: (baja) => {
+          const tipo = bajaTipo(baja);
+          return (
+            <Badge tone={tipo === "baja_sucursal" ? "error" : "neutral"}>
+              {BAJA_TIPO_LABELS[tipo]}
+            </Badge>
+          );
+        },
+      },
+      {
         key: "producto",
         header: "Producto",
         render: (baja) => (
@@ -134,7 +165,17 @@ function BajasContent() {
         key: "motivo",
         header: "Motivo",
         render: (baja) => (
-          <Badge tone="warning">{MOTIVO_LABELS[baja.motivo]}</Badge>
+          <span className="text-text-secondary">{bajaMotivoLabel(baja)}</span>
+        ),
+      },
+      {
+        key: "deuda",
+        header: "Deuda USD",
+        className: "text-right",
+        render: (baja) => (
+          <span className="tabular-nums text-text-secondary">
+            {formatUSD(bajaDebtUSD(baja, productById.get(baja.productId)))}
+          </span>
         ),
       },
       {
@@ -154,11 +195,22 @@ function BajasContent() {
         ),
       },
     ],
-    [productName],
+    [productById, productName],
   );
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateTipo(tipo: BajaTipo) {
+    setForm((current) => ({
+      ...current,
+      tipo,
+      motivo:
+        tipo === "baja_sucursal"
+          ? current.motivo || "rotura"
+          : current.motivo,
+    }));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -171,7 +223,8 @@ function BajasContent() {
         productId: form.productId,
         sucursal: form.sucursal,
         cajas: Number(form.cajas),
-        motivo: form.motivo,
+        tipo: form.tipo,
+        ...(form.motivo ? { motivo: form.motivo } : {}),
         fecha: dateFromInput(form.fecha),
         notas: form.notas,
       });
@@ -196,7 +249,7 @@ function BajasContent() {
         </CardHeader>
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
             <Select
               label="Producto"
               name="productId"
@@ -226,14 +279,36 @@ function BajasContent() {
               disabled={submitting}
             />
             <Select
+              label="Tipo de baja"
+              name="tipo"
+              value={form.tipo}
+              onChange={(event) => updateTipo(event.target.value as BajaTipo)}
+              options={[
+                {
+                  value: "devolucion_proveedor",
+                  label: BAJA_TIPO_LABELS.devolucion_proveedor,
+                },
+                {
+                  value: "baja_sucursal",
+                  label: BAJA_TIPO_LABELS.baja_sucursal,
+                },
+              ]}
+              disabled={submitting}
+            />
+            <Select
               label="Motivo"
               name="motivo"
               value={form.motivo}
               onChange={(event) =>
-                update("motivo", event.target.value as BajaMotivo)
+                update("motivo", event.target.value as BajaMotivo | "")
               }
-              options={MOTIVO_OPTIONS}
+              options={
+                form.tipo === "baja_sucursal"
+                  ? MOTIVO_OPTIONS
+                  : [{ value: "", label: "Sin motivo" }, ...MOTIVO_OPTIONS]
+              }
               disabled={submitting}
+              required={form.tipo === "baja_sucursal"}
             />
             <Input
               label="Fecha"
@@ -244,6 +319,12 @@ function BajasContent() {
               disabled={submitting}
             />
           </div>
+
+          <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-text-secondary">
+            {form.tipo === "devolucion_proveedor"
+              ? "No genera deuda con All Covering."
+              : `Genera deuda con All Covering por el costo del producto. Deuda estimada: ${formatUSD(estimatedDebt)}.`}
+          </p>
 
           <div className="flex flex-col gap-1.5">
             <label

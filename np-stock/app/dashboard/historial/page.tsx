@@ -19,12 +19,17 @@ import {
   displayNameForUser,
   useUserProfiles,
 } from "@/hooks/useUserProfiles";
+import {
+  BAJA_TIPO_LABELS,
+  bajaDebtUSD,
+  bajaMotivoLabel,
+  bajaTipo,
+} from "@/lib/bajas";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
 import { formatDateAR, formatUSD } from "@/lib/formatters";
 import type {
   Audit,
   AuditItem,
-  BajaMotivo,
   BajaStock,
   Branch,
   IngresoStock,
@@ -70,7 +75,6 @@ interface HistorialRow {
   cajas?: number;
   montoUSD?: number;
   costoTotalUSD?: number;
-  motivo?: BajaMotivo;
   createdBy: string;
   notas?: string;
   auditItems?: AuditItem[];
@@ -92,14 +96,6 @@ const tipoOptions = [
   { value: "movimiento", label: "Movimientos" },
   { value: "auditoria", label: "Auditorías" },
 ];
-
-const bajaMotivoLabels: Record<BajaMotivo, string> = {
-  rotura: "Rotura",
-  perdida: "Pérdida",
-  ajuste: "Ajuste",
-  devolucion_proveedor: "Devolución proveedor",
-  otro: "Otro",
-};
 
 const tipoLabels: Record<HistorialTipo, string> = {
   venta: "Venta",
@@ -138,6 +134,12 @@ function isFiniteNumber(value: unknown): value is number {
 function productNameMap(products: Product[]): Record<string, string> {
   const map: Record<string, string> = {};
   for (const product of products) map[product.id] = product.nombre;
+  return map;
+}
+
+function productMap(products: Product[]): Record<string, Product> {
+  const map: Record<string, Product> = {};
+  for (const product of products) map[product.id] = product;
   return map;
 }
 
@@ -215,17 +217,24 @@ function ingresoToRow(
 function bajaToRow(
   baja: BajaStock,
   productNames: Record<string, string>,
+  productsById: Record<string, Product>,
 ): HistorialRow {
+  const tipo = bajaTipo(baja);
+  const motivo = bajaMotivoLabel(baja);
+
   return {
     id: baja.id,
     tipo: "baja",
     fecha: baja.fecha,
     productId: baja.productId,
     producto: productNames[baja.productId] ?? baja.productId,
-    detalle: bajaMotivoLabels[baja.motivo],
+    detalle:
+      motivo === "-"
+        ? BAJA_TIPO_LABELS[tipo]
+        : `${BAJA_TIPO_LABELS[tipo]} - ${motivo}`,
     sucursal: baja.sucursal,
     cajas: baja.cajas,
-    motivo: baja.motivo,
+    costoTotalUSD: bajaDebtUSD(baja, productsById[baja.productId]),
     createdBy: baja.createdBy,
     notas: baja.notas,
   };
@@ -540,6 +549,7 @@ function AdminHistoryContent() {
   } = useUserProfiles();
 
   const productNames = useMemo(() => productNameMap(products), [products]);
+  const productsById = useMemo(() => productMap(products), [products]);
 
   const productOptions = useMemo(
     () => [
@@ -556,7 +566,7 @@ function AdminHistoryContent() {
     const allRows: HistorialRow[] = [
       ...sales.map((sale) => saleToRow(sale, productNames)),
       ...ingresos.map((ingreso) => ingresoToRow(ingreso, productNames)),
-      ...bajas.map((baja) => bajaToRow(baja, productNames)),
+      ...bajas.map((baja) => bajaToRow(baja, productNames, productsById)),
       ...traslados.map((traslado) => trasladoToRow(traslado, productNames)),
       ...audits.map(auditToRow),
     ];
@@ -564,7 +574,16 @@ function AdminHistoryContent() {
     return allRows
       .filter((row) => rowMatchesFilters(row, filters))
       .sort((a, b) => b.fecha.toMillis() - a.fecha.toMillis());
-  }, [audits, bajas, filters, ingresos, productNames, sales, traslados]);
+  }, [
+    audits,
+    bajas,
+    filters,
+    ingresos,
+    productNames,
+    productsById,
+    sales,
+    traslados,
+  ]);
 
   const update = <K extends keyof FiltersState>(
     key: K,

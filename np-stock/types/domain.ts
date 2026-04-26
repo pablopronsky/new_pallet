@@ -102,11 +102,13 @@ export interface IngresoStock {
   createdAt?: Timestamp;
 }
 
+export type BajaTipo = "devolucion_proveedor" | "baja_sucursal";
+
 export type BajaMotivo =
   | "rotura"
   | "perdida"
+  | "muestra"
   | "ajuste"
-  | "devolucion_proveedor"
   | "otro";
 
 export interface BajaStock {
@@ -114,7 +116,11 @@ export interface BajaStock {
   productId: string;
   sucursal: Branch;
   cajas: number;
-  motivo: BajaMotivo;
+  tipo: BajaTipo;
+  motivo?: BajaMotivo;
+  generaDeuda: boolean;
+  costoUSDPorCaja?: number;
+  deudaUSD?: number;
   fecha: Timestamp;
   createdBy: string;
   notas?: string;

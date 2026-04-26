@@ -9,9 +9,10 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useDistribution } from "@/hooks/useDistribution";
 import { useProducts } from "@/hooks/useProducts";
+import { bajaDebtUSD } from "@/lib/bajas";
 import { formatNumberAR, formatUSD } from "@/lib/formatters";
-import { salesCollection } from "@/lib/firestore";
-import type { Branch, Product, Role, Sale } from "@/types/domain";
+import { bajasCollection, salesCollection } from "@/lib/firestore";
+import type { BajaStock, Branch, Product, Role, Sale } from "@/types/domain";
 
 interface DashboardMetrics {
   stockDisponible: number;
@@ -22,6 +23,12 @@ interface DashboardMetrics {
 
 interface UseDashboardSalesResult {
   sales: Sale[];
+  loading: boolean;
+  error: Error | null;
+}
+
+interface UseDashboardBajasResult {
+  bajas: BajaStock[];
   loading: boolean;
   error: Error | null;
 }
@@ -75,6 +82,40 @@ function useDashboardSales(
   return { sales, loading, error };
 }
 
+function useDashboardBajas(role: Role | null): UseDashboardBajasResult {
+  const [bajas, setBajas] = useState<BajaStock[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (role !== "admin") {
+      setBajas([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    setLoading(true);
+    const unsub = onSnapshot(
+      bajasCollection(),
+      (snap) => {
+        setBajas(snap.docs.map((doc) => doc.data()));
+        setError(null);
+        setLoading(false);
+      },
+      (err) => {
+        setBajas([]);
+        setError(err);
+        setLoading(false);
+      },
+    );
+
+    return () => unsub();
+  }, [role]);
+
+  return { bajas, loading, error };
+}
+
 function buildProductMap(products: Product[]): Record<string, Product> {
   const byId: Record<string, Product> = {};
   for (const product of products) byId[product.id] = product;
@@ -85,9 +126,10 @@ function calculateMetrics(params: {
   productsById: Record<string, Product>;
   distributions: ReturnType<typeof useDistribution>["distributions"];
   sales: Sale[];
+  bajas: BajaStock[];
   branch?: Branch;
 }): DashboardMetrics {
-  const { productsById, distributions, sales, branch } = params;
+  const { productsById, distributions, sales, bajas, branch } = params;
 
   const stockDisponible = distributions.reduce((total, distribution) => {
     if (branch) {
@@ -107,14 +149,18 @@ function calculateMetrics(params: {
     const productCost = productsById[sale.productId]?.costoUSD ?? 0;
     return total + sale.cajas * productCost;
   }, 0);
+  const bajaDebt = bajas.reduce(
+    (total, baja) => total + bajaDebtUSD(baja, productsById[baja.productId]),
+    0,
+  );
 
   const revenueUSD = sales.reduce((total, sale) => total + sale.montoUSD, 0);
 
   return {
     stockDisponible,
-    deudaAllCovering,
+    deudaAllCovering: deudaAllCovering + bajaDebt,
     revenueUSD,
-    utilidadBruta: revenueUSD - deudaAllCovering,
+    utilidadBruta: revenueUSD - deudaAllCovering - bajaDebt,
   };
 }
 
@@ -204,6 +250,11 @@ function InternalDashboard() {
     loading: salesLoading,
     error: salesError,
   } = useDashboardSales(role, vendedorBranch);
+  const {
+    bajas,
+    loading: bajasLoading,
+    error: bajasError,
+  } = useDashboardBajas(role);
 
   const productsById = useMemo(() => buildProductMap(products), [products]);
   const metrics = useMemo(
@@ -212,16 +263,21 @@ function InternalDashboard() {
         productsById,
         distributions,
         sales,
+        bajas,
         branch: vendedorBranch,
       }),
-    [distributions, productsById, sales, vendedorBranch],
+    [bajas, distributions, productsById, sales, vendedorBranch],
   );
 
-  const loading = productsLoading || distributionsLoading || salesLoading;
-  const error = productsError ?? distributionsError ?? salesError;
+  const loading =
+    productsLoading || distributionsLoading || salesLoading || bajasLoading;
+  const error = productsError ?? distributionsError ?? salesError ?? bajasError;
   const hasMissingBranch = role === "vendedor" && !vendedorBranch;
   const hasAnyData =
-    products.length > 0 || distributions.length > 0 || sales.length > 0;
+    products.length > 0 ||
+    distributions.length > 0 ||
+    sales.length > 0 ||
+    bajas.length > 0;
 
   return (
     <>
@@ -253,7 +309,7 @@ function InternalDashboard() {
         <StatCard
           label="Deuda All Covering"
           value={loading ? "..." : formatUSD(metrics.deudaAllCovering)}
-          hint="Ventas por costo vigente del producto"
+          hint="Ventas y bajas de sucursal por costo del producto"
           tone="accent"
         />
         <StatCard

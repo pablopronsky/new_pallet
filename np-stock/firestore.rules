@@ -141,7 +141,11 @@ service cloud.firestore {
           'productId',
           'sucursal',
           'cajas',
+          'tipo',
           'motivo',
+          'generaDeuda',
+          'costoUSDPorCaja',
+          'deudaUSD',
           'fecha',
           'createdBy',
           'notas',
@@ -151,7 +155,8 @@ service cloud.firestore {
           'productId',
           'sucursal',
           'cajas',
-          'motivo',
+          'tipo',
+          'generaDeuda',
           'fecha',
           'createdBy',
           'createdAt'
@@ -161,13 +166,37 @@ service cloud.firestore {
         && request.resource.data.sucursal in ['gonnet', 'laplata', 'quilmes']
         && request.resource.data.cajas is int
         && request.resource.data.cajas > 0
-        && request.resource.data.motivo in [
+        && request.resource.data.tipo in [
+          'devolucion_proveedor',
+          'baja_sucursal'
+        ]
+        && (
+          (request.resource.data.tipo == 'devolucion_proveedor'
+            && request.resource.data.generaDeuda == false)
+          || (request.resource.data.tipo == 'baja_sucursal'
+            && request.resource.data.generaDeuda == true)
+        )
+        && (!('motivo' in request.resource.data)
+          || request.resource.data.motivo in [
           'rotura',
           'perdida',
+          'muestra',
           'ajuste',
-          'devolucion_proveedor',
           'otro'
-        ]
+        ])
+        && (!('costoUSDPorCaja' in request.resource.data)
+          || (request.resource.data.costoUSDPorCaja is number
+            && request.resource.data.costoUSDPorCaja >= 0))
+        && (!('deudaUSD' in request.resource.data)
+          || (request.resource.data.deudaUSD is number
+            && request.resource.data.deudaUSD >= 0))
+        && (request.resource.data.tipo != 'baja_sucursal'
+          || (
+            request.resource.data.costoUSDPorCaja is number
+            && request.resource.data.costoUSDPorCaja > 0
+            && request.resource.data.deudaUSD is number
+            && request.resource.data.deudaUSD > 0
+          ))
         && request.resource.data.fecha is timestamp
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt is timestamp
@@ -259,7 +288,7 @@ service cloud.firestore {
 
     match /bajas/{bajaId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isAdmin() && isValidBajaCreate();
       allow update: if false;
       allow delete: if isAdmin();
     }
