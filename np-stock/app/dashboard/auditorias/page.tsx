@@ -131,8 +131,13 @@ function AuditForm({
       for (const branch of BRANCHES) {
         const d = getDraft(product.id, branch);
         const raw = d.counted.trim();
+        const cajasSistema = systemBoxes(product.id, branch);
+        const notas = d.notas.trim();
         if (!raw) {
-          missing.push(`${product.nombre} / ${BRANCH_LABELS[branch]}`);
+          if (cajasSistema > 0) {
+            missing.push(`${product.nombre} / ${BRANCH_LABELS[branch]}`);
+            continue;
+          }
           continue;
         }
         const n = parseInt(raw, 10);
@@ -147,11 +152,10 @@ function AuditForm({
           );
           return;
         }
-        const notas = d.notas.trim();
         items.push({
           productId: product.id,
           sucursal: branch,
-          cajasSistema: systemBoxes(product.id, branch),
+          cajasSistema,
           cajasContadas: n,
           ...(notas ? { notas } : {}),
         });
@@ -261,6 +265,7 @@ function AuditForm({
                           inputMode="numeric"
                           value={draft.counted}
                           disabled={submitting}
+                          placeholder={sys === 0 ? "0" : undefined}
                           onChange={(e) =>
                             updateDraft(product.id, branch, {
                               counted: e.target.value,
@@ -268,6 +273,11 @@ function AuditForm({
                           }
                           className="h-9 w-24 rounded-xl border border-border bg-surface-2 px-3 text-right text-sm tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
                         />
+                        {sys === 0 && (
+                          <span className="mt-1 block text-right text-[11px] text-text-muted">
+                            Sin stock según sistema
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-right">
                         {diff === null ? (
@@ -324,6 +334,248 @@ function AuditForm({
           </Button>
         </div>
       </div>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recent audits
+// ---------------------------------------------------------------------------
+
+interface AuditSummaryRow {
+  audit: Audit;
+  differenceCount: number;
+}
+
+interface RecentAuditsProps {
+  auditState: Pick<UseAuditsResult, "audits" | "loading" | "error">;
+  productById: Record<string, Product>;
+}
+
+function auditStatus(audit: Audit): {
+  label: "Sin diferencias" | "Con diferencias" | "Resuelta";
+  tone: "success" | "warning" | "neutral";
+} {
+  if (audit.resuelta) return { label: "Resuelta", tone: "neutral" };
+  return audit.items.some((item) => item.diferencia !== 0)
+    ? { label: "Con diferencias", tone: "warning" }
+    : { label: "Sin diferencias", tone: "success" };
+}
+
+function formatDifference(value: number): string {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function RecentAudits({ auditState, productById }: RecentAuditsProps) {
+  const { audits, loading, error } = auditState;
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const rows: AuditSummaryRow[] = useMemo(
+    () =>
+      audits.map((audit) => ({
+        audit,
+        differenceCount: audit.items.filter((item) => item.diferencia !== 0)
+          .length,
+      })),
+    [audits],
+  );
+
+  function toggleExpanded(auditId: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(auditId)) {
+        next.delete(auditId);
+      } else {
+        next.add(auditId);
+      }
+      return next;
+    });
+  }
+
+  const columns: SimpleColumn<AuditSummaryRow>[] = [
+    {
+      key: "fecha",
+      header: "Fecha",
+      render: (r) => (
+        <span className="text-text-secondary">
+          {formatDateAR(r.audit.fecha.toDate())}
+        </span>
+      ),
+    },
+    {
+      key: "createdBy",
+      header: "Creado por",
+      render: (r) => (
+        <span className="font-mono text-xs text-text-secondary">
+          {r.audit.createdBy}
+        </span>
+      ),
+    },
+    {
+      key: "items",
+      header: "Items",
+      className: "text-right",
+      render: (r) => (
+        <span className="tabular-nums">{r.audit.items.length}</span>
+      ),
+    },
+    {
+      key: "differences",
+      header: "Diferencias",
+      className: "text-right",
+      render: (r) => (
+        <span className="tabular-nums">{r.differenceCount}</span>
+      ),
+    },
+    {
+      key: "estado",
+      header: "Estado",
+      render: (r) => {
+        const status = auditStatus(r.audit);
+        return <Badge tone={status.tone}>{status.label}</Badge>;
+      },
+    },
+    {
+      key: "notas",
+      header: "Notas",
+      render: (r) =>
+        r.audit.notas ? (
+          <span className="text-text-secondary">{r.audit.notas}</span>
+        ) : (
+          <span className="text-text-muted">-</span>
+        ),
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "text-right",
+      render: (r) => {
+        const expanded = expandedIds.has(r.audit.id);
+        return (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => toggleExpanded(r.audit.id)}
+          >
+            {expanded ? "Ocultar" : "Ver detalle"}
+          </Button>
+        );
+      },
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Auditorías recientes</CardTitle>
+        {loading && (
+          <span className="text-xs text-text-muted">Cargando...</span>
+        )}
+      </CardHeader>
+
+      {error && (
+        <div className="mb-3">
+          <FeedbackBanner message={error.message} tone="error" />
+        </div>
+      )}
+
+      <SimpleTable<AuditSummaryRow>
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => r.audit.id}
+        empty="Sin auditorías registradas"
+      />
+
+      {rows
+        .filter((row) => expandedIds.has(row.audit.id))
+        .map((row) => (
+          <div
+            key={row.audit.id}
+            className="mt-4 rounded-xl border border-border bg-surface-2/40 p-4"
+          >
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">
+                  Detalle de auditoría
+                </p>
+                <p className="text-xs text-text-muted">
+                  {formatDateAR(row.audit.fecha.toDate())}
+                </p>
+              </div>
+              {row.differenceCount === 0 && (
+                <Badge tone="success">Auditoría sin diferencias.</Badge>
+              )}
+            </div>
+
+            {row.differenceCount === 0 && (
+              <p className="mb-3 text-sm text-text-secondary">
+                Auditoría sin diferencias.
+              </p>
+            )}
+
+            <SimpleTable<AuditItem>
+              columns={[
+                {
+                  key: "producto",
+                  header: "Producto",
+                  render: (item) => (
+                    <span className="font-medium text-text-primary">
+                      {productById[item.productId]?.nombre ?? item.productId}
+                    </span>
+                  ),
+                },
+                {
+                  key: "sucursal",
+                  header: "Sucursal",
+                  render: (item) => BRANCH_LABELS[item.sucursal],
+                },
+                {
+                  key: "sistema",
+                  header: "Sistema",
+                  className: "text-right",
+                  render: (item) => (
+                    <span className="tabular-nums">{item.cajasSistema}</span>
+                  ),
+                },
+                {
+                  key: "contadas",
+                  header: "Contadas",
+                  className: "text-right",
+                  render: (item) => (
+                    <span className="tabular-nums">{item.cajasContadas}</span>
+                  ),
+                },
+                {
+                  key: "diferencia",
+                  header: "Diferencia",
+                  className: "text-right",
+                  render: (item) =>
+                    item.diferencia === 0 ? (
+                      <Badge tone="success">0</Badge>
+                    ) : (
+                      <Badge tone={item.diferencia > 0 ? "warning" : "error"}>
+                        {formatDifference(item.diferencia)}
+                      </Badge>
+                    ),
+                },
+                {
+                  key: "notas",
+                  header: "Notas",
+                  render: (item) =>
+                    item.notas ? (
+                      <span className="text-text-secondary">{item.notas}</span>
+                    ) : (
+                      <span className="text-text-muted">-</span>
+                    ),
+                },
+              ]}
+              rows={row.audit.items}
+              rowKey={(item) => `${item.productId}:${item.sucursal}`}
+              empty="Auditoría sin diferencias."
+            />
+          </div>
+        ))}
     </Card>
   );
 }
@@ -515,6 +767,7 @@ function AuditoriasContent() {
         distLoading={distLoading}
         auditState={auditState}
       />
+      <RecentAudits auditState={auditState} productById={productById} />
       <RoleGuard allowedRoles={["admin"]} fallback={null}>
         <AdminAlerts auditState={auditState} productById={productById} />
       </RoleGuard>
