@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { onSnapshot, orderBy, query } from "firebase/firestore";
+import { onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { salesCollection } from "@/lib/firestore";
 import type { Branch, Sale } from "@/types/domain";
 
@@ -24,7 +24,9 @@ export function useSalesHistory(filters: SalesHistoryFilters): UseSalesHistoryRe
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const q = query(salesCollection(), orderBy("fecha", "desc"));
+    const q = filters.sucursal
+      ? query(salesCollection(), where("sucursal", "==", filters.sucursal))
+      : query(salesCollection(), orderBy("fecha", "desc"));
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -37,7 +39,7 @@ export function useSalesHistory(filters: SalesHistoryFilters): UseSalesHistoryRe
       },
     );
     return () => unsub();
-  }, []);
+  }, [filters.sucursal]);
 
   const filtered = useMemo(() => {
     const fromMs = filters.from ? filters.from.getTime() : null;
@@ -52,7 +54,7 @@ export function useSalesHistory(filters: SalesHistoryFilters): UseSalesHistoryRe
       if (toMs !== null && saleMs > toMs) return false;
 
       return true;
-    });
+    }).sort((a, b) => b.fecha.toMillis() - a.fecha.toMillis());
   }, [sales, filters.productId, filters.sucursal, filters.from, filters.to]);
 
   return { sales: filtered, loading, error };

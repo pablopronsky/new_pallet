@@ -232,7 +232,7 @@ Implemented:
 - ingresos
 - bajas
 - movimientos/traslados
-- history
+- unified operational history for ventas, ingresos, bajas, movimientos, and auditorías where role allows
 - configuration
 - audits
 - provider portal
