@@ -7,8 +7,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function userRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return userDoc().data.role;
     }
 
     function isAdmin() {
@@ -28,7 +32,7 @@ service cloud.firestore {
     }
 
     function assignedBranch() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sucursalAsignada;
+      return userDoc().data.sucursalAsignada;
     }
 
     function hasAssignedBranch() {
@@ -67,6 +71,8 @@ service cloud.firestore {
           'productId',
           'sucursal',
           'cajas',
+          'costoUSDPorCaja',
+          'costoTotalUSD',
           'fecha',
           'createdBy',
           'notas',
@@ -76,6 +82,8 @@ service cloud.firestore {
           'productId',
           'sucursal',
           'cajas',
+          'costoUSDPorCaja',
+          'costoTotalUSD',
           'fecha',
           'createdBy',
           'createdAt'
@@ -85,87 +93,88 @@ service cloud.firestore {
         && request.resource.data.sucursal in ['gonnet', 'laplata', 'quilmes']
         && request.resource.data.cajas is int
         && request.resource.data.cajas > 0
+        && request.resource.data.costoUSDPorCaja is number
+        && request.resource.data.costoUSDPorCaja > 0
+        && request.resource.data.costoTotalUSD is number
+        && request.resource.data.costoTotalUSD > 0
         && request.resource.data.fecha is timestamp
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdAt == request.time
+        && request.resource.data.createdAt is timestamp
         && (!('notas' in request.resource.data)
           || request.resource.data.notas is string);
     }
 
-    // Users: each user can read their own profile. Admins can read/write all.
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow write: if isAdmin();
     }
 
-    // Products: internal app roles only, because docs include sale prices/costs.
-    // Note: Firestore cannot hide individual fields from a readable document.
     match /productos/{productId} {
-      allow read: if isAdmin()
-        || isControlador()
-        || isVendedor();
+      allow read: if isAdmin() || isControlador() || isVendedor();
       allow write: if isAdmin();
     }
 
-    // Distribution: internal roles can read; admin + controlador may write
-    // (controlador typically decreases their branch on sale; admin re-balances).
-    // Vendedores may only decrement their assigned branch during sale creation.
-    // This is an MVP client-side transaction; a Cloud Function/server action
-    // should replace client-side stock mutation for stronger sale/update coupling.
     match /distribucion/{productId} {
-      allow read: if isAdmin()
-        || isControlador()
-        || isVendedor();
-      allow write: if isAdmin() || isControlador();
+      allow read: if isAdmin() || isControlador() || isVendedor();
+
+      allow create, update, delete: if isAdmin() || isControlador();
+
       allow update: if isVendedorDistributionSaleUpdate();
     }
 
-    // Sales: internal only; admin/controlador can read all.
-    // Vendedores can only create sales for their assigned branch.
     match /ventas/{saleId} {
       allow read: if isAdmin()
         || isControlador()
         || (isVendedor() && resource.data.sucursal == assignedBranch());
+
       allow create: if isAdmin()
         || isControlador()
-        || (isVendedor()
-          && request.resource.data.sucursal == assignedBranch());
+        || (
+          isVendedor()
+          && hasAssignedBranch()
+          && request.resource.data.sucursal == assignedBranch()
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.cajas is int
+          && request.resource.data.cajas > 0
+        );
+
       allow update, delete: if isAdmin();
     }
 
-    // Incoming stock entries: internal stock intake history.
-    // Creating an ingreso must happen with a transaction that also updates
-    // distribucion/{productId}.cajasPorSucursal.
     match /ingresos/{ingresoId} {
       allow read: if isAdmin() || isControlador();
-      allow create: if (isAdmin() || isControlador()) && isValidIngresoCreate();
+
+      allow create: if isAdmin()
+        || (isControlador() && isValidIngresoCreate());
+
       allow update: if false;
       allow delete: if isAdmin();
     }
 
-    // Supplier-safe provider snapshot. This is the only business data
-    // collection readable by All Covering.
     match /proveedorResumen/{productId} {
       allow read: if isAdmin() || isAllCovering();
       allow write: if isAdmin();
     }
 
-    // Audits: internal only. All Covering cannot read audit data.
     match /auditorias/{auditId} {
       allow read: if isAdmin() || isControlador();
       allow create: if isAdmin() || isControlador();
       allow update, delete: if isAdmin();
     }
 
-    // App config: internal only. All Covering cannot read or edit config.
     match /config/{docId} {
       allow read: if isAdmin() || isControlador() || isVendedor();
       allow write: if isAdmin();
     }
 
-    // Fallback: deny anything not matched above.
+    /*
+      Fallback temporal para desarrollo:
+      permite que admin lea/escriba cualquier colección no contemplada arriba.
+      Más adelante, cuando terminemos Ingresos/Bajas/Exportar/Usuarios,
+      conviene volver esto a false.
+    */
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
   }
 }

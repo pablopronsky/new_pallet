@@ -18,6 +18,7 @@ import {
   COLLECTIONS,
   distributionDoc,
   ingresosCollection,
+  productDoc,
 } from "@/lib/firestore";
 import type { Branch, BranchBoxes, IngresoStock } from "@/types/domain";
 
@@ -25,6 +26,7 @@ export interface CreateIngresoInput {
   productId: string;
   sucursal: Branch;
   cajas: number;
+  costoUSDPorCaja: number;
   fecha: Date;
   notas?: string;
 }
@@ -58,6 +60,13 @@ function validateIngreso(input: CreateIngresoInput): void {
     throw new Error("cajas must be greater than 0");
   }
 
+  if (
+    !Number.isFinite(input.costoUSDPorCaja) ||
+    input.costoUSDPorCaja <= 0
+  ) {
+    throw new Error("costoUSDPorCaja must be greater than 0");
+  }
+
   if (!(input.fecha instanceof Date) || Number.isNaN(input.fecha.getTime())) {
     throw new Error("fecha must be a valid Date");
   }
@@ -74,7 +83,7 @@ function emptyBranchBoxes(): BranchBoxes {
 }
 
 export function useIngresos(): UseIngresosResult {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [ingresos, setIngresos] = useState<IngresoStock[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -109,10 +118,15 @@ export function useIngresos(): UseIngresosResult {
       try {
         const ingresoRef = doc(collection(db, COLLECTIONS.ingresos));
         const distRef = distributionDoc(input.productId);
+        const productRef = productDoc(input.productId);
         const notas = input.notas?.trim();
+        const costoTotalUSD = input.cajas * input.costoUSDPorCaja;
 
         await runTransaction(db, async (tx) => {
-          const distSnap = await tx.get(distRef);
+          const [distSnap, productSnap] = await Promise.all([
+            tx.get(distRef),
+            role === "admin" ? tx.get(productRef) : Promise.resolve(null),
+          ]);
           const currentBoxes = distSnap.exists()
             ? distSnap.data().cajasPorSucursal
             : emptyBranchBoxes();
@@ -132,10 +146,26 @@ export function useIngresos(): UseIngresosResult {
             { merge: true },
           );
 
+          if (role === "admin" && productSnap?.exists()) {
+            const product = productSnap.data();
+            if (
+              !Number.isFinite(product.costoUSD) ||
+              product.costoUSD <= 0 ||
+              product.costoUSD !== input.costoUSDPorCaja
+            ) {
+              tx.update(productRef, {
+                costoUSD: input.costoUSDPorCaja,
+                updatedAt: serverTimestamp(),
+              });
+            }
+          }
+
           tx.set(ingresoRef, {
             productId: input.productId,
             sucursal: input.sucursal,
             cajas: input.cajas,
+            costoUSDPorCaja: input.costoUSDPorCaja,
+            costoTotalUSD,
             fecha: Timestamp.fromDate(input.fecha),
             createdBy: user.uid,
             ...(notas ? { notas } : {}),
@@ -151,7 +181,7 @@ export function useIngresos(): UseIngresosResult {
         setSubmitting(false);
       }
     },
-    [user],
+    [role, user],
   );
 
   return { ingresos, loading, error, createIngreso, submitting };

@@ -94,6 +94,8 @@ export interface IngresoStock {
   productId: string;
   sucursal: Branch;
   cajas: number;
+  costoUSDPorCaja: number;
+  costoTotalUSD: number;
   fecha: Timestamp;
   createdBy: string;
   notas?: string;

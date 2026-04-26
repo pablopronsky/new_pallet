@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,13 +11,14 @@ import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
 import { useIngresos } from "@/hooks/useIngresos";
 import { useProducts } from "@/hooks/useProducts";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
-import { formatDateAR, formatNumberAR } from "@/lib/formatters";
+import { formatDateAR, formatNumberAR, formatUSD } from "@/lib/formatters";
 import type { Branch, IngresoStock } from "@/types/domain";
 
 interface FormState {
   productId: string;
   sucursal: Branch;
   cajas: string;
+  costoUSDPorCaja: string;
   fecha: string;
   notas: string;
 }
@@ -40,6 +41,7 @@ function initialFormState(): FormState {
     productId: "",
     sucursal: "gonnet",
     cajas: "",
+    costoUSDPorCaja: "",
     fecha: todayInputValue(),
     notas: "",
   };
@@ -57,6 +59,23 @@ function IngresosContent() {
     for (const product of products) map[product.id] = product.nombre;
     return map;
   }, [products]);
+
+  const selectedProduct = useMemo(
+    () => products.find((product) => product.id === form.productId) ?? null,
+    [form.productId, products],
+  );
+
+  useEffect(() => {
+    if (!selectedProduct || selectedProduct.costoUSD <= 0) return;
+    setForm((current) =>
+      current.costoUSDPorCaja
+        ? current
+        : {
+            ...current,
+            costoUSDPorCaja: String(selectedProduct.costoUSD),
+          },
+    );
+  }, [selectedProduct]);
 
   const productOptions = useMemo(
     () => [
@@ -79,6 +98,20 @@ function IngresosContent() {
   );
 
   const recentIngresos = useMemo(() => ingresos.slice(0, 20), [ingresos]);
+
+  const totalCostUSD = useMemo(() => {
+    const cajas = Number(form.cajas);
+    const costoUSDPorCaja = Number(form.costoUSDPorCaja);
+    if (
+      !Number.isFinite(cajas) ||
+      !Number.isFinite(costoUSDPorCaja) ||
+      cajas <= 0 ||
+      costoUSDPorCaja <= 0
+    ) {
+      return 0;
+    }
+    return cajas * costoUSDPorCaja;
+  }, [form.cajas, form.costoUSDPorCaja]);
 
   const columns = useMemo<SimpleColumn<IngresoStock>[]>(
     () => [
@@ -116,6 +149,26 @@ function IngresosContent() {
         ),
       },
       {
+        key: "costoUSDPorCaja",
+        header: "Costo USD/caja",
+        className: "text-right",
+        render: (ingreso) => (
+          <span className="tabular-nums">
+            {formatUSD(ingreso.costoUSDPorCaja)}
+          </span>
+        ),
+      },
+      {
+        key: "costoTotalUSD",
+        header: "Costo total USD",
+        className: "text-right",
+        render: (ingreso) => (
+          <span className="tabular-nums">
+            {formatUSD(ingreso.costoTotalUSD)}
+          </span>
+        ),
+      },
+      {
         key: "createdBy",
         header: "Creado por",
         render: (ingreso) => (
@@ -141,6 +194,16 @@ function IngresosContent() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function handleProductChange(productId: string) {
+    const product = products.find((item) => item.id === productId);
+    setForm((current) => ({
+      ...current,
+      productId,
+      costoUSDPorCaja:
+        product && product.costoUSD > 0 ? String(product.costoUSD) : "",
+    }));
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
@@ -151,6 +214,7 @@ function IngresosContent() {
         productId: form.productId,
         sucursal: form.sucursal,
         cajas: Number(form.cajas),
+        costoUSDPorCaja: Number(form.costoUSDPorCaja),
         fecha: dateFromInput(form.fecha),
         notas: form.notas,
       });
@@ -175,12 +239,12 @@ function IngresosContent() {
         </CardHeader>
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
             <Select
               label="Producto"
               name="productId"
               value={form.productId}
-              onChange={(event) => update("productId", event.target.value)}
+              onChange={(event) => handleProductChange(event.target.value)}
               options={productOptions}
               disabled={productsLoading || submitting}
             />
@@ -205,6 +269,18 @@ function IngresosContent() {
               disabled={submitting}
             />
             <Input
+              label="Costo USD/caja"
+              name="costoUSDPorCaja"
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.costoUSDPorCaja}
+              onChange={(event) =>
+                update("costoUSDPorCaja", event.target.value)
+              }
+              disabled={submitting}
+            />
+            <Input
               label="Fecha"
               name="fecha"
               type="date"
@@ -213,6 +289,13 @@ function IngresosContent() {
               disabled={submitting}
             />
           </div>
+
+          <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-secondary">
+            Total costo:{" "}
+            <span className="font-medium text-text-primary">
+              {formatUSD(totalCostUSD)}
+            </span>
+          </p>
 
           <div className="flex flex-col gap-1.5">
             <label
@@ -248,7 +331,12 @@ function IngresosContent() {
           <div>
             <Button
               type="submit"
-              disabled={submitting || productsLoading || !form.productId}
+              disabled={
+                submitting ||
+                productsLoading ||
+                !form.productId ||
+                Number(form.costoUSDPorCaja) <= 0
+              }
             >
               {submitting ? "Registrando..." : "Registrar ingreso"}
             </Button>

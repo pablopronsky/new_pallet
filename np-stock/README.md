@@ -33,6 +33,7 @@ np-stock tracks consignment inventory from *All Covering* distributed to three N
 - **Product** - SKU catalog metadata: name, category (`SPC` | `Laminado` | `SPC Budget`), `costoUSD`, `precioVentaUSD`, `esBudget`, `activo`. Does not store stock quantities.
 - **ProductDistribution** (`distribucion/{productId}`) - current boxes allocated per branch in `cajasPorSucursal`.
 - **Sale** - individual sale: product, branch, boxes, `montoUSD`, `tipoCambioUSD`, `montoARS`, date, seller.
+- **IngresoStock** (`ingresos/{id}`) - incoming merchandise entry with branch, boxes, `costoUSDPorCaja`, and `costoTotalUSD`.
 - **ProviderSnapshot** (`proveedorResumen/{productId}`) - supplier-safe aggregate for All Covering with sold boxes, remaining boxes, and debt only.
 - **Audit** - audit record with per-product/per-branch counts and differences.
 - **AppConfig** - singleton config doc with `tipoCambioUSD`.
@@ -61,6 +62,7 @@ The three core collections have distinct responsibilities:
 - **`productos/{id}`** - product metadata only. No stock quantity.
 - **`distribucion/{productId}.cajasPorSucursal`** - live remaining stock per branch.
 - **`ventas/{id}`** - historical sale records used for sold totals, debt, and revenue calculations.
+- **`ingresos/{id}`** - historical incoming stock records. These store cost in USD per box and total USD cost. ARS is not used for ingresos; ARS is only used for customer sales conversion.
 
 ### Flow
 
@@ -72,14 +74,16 @@ The three core collections have distinct responsibilities:
 
 ## Seed the database
 
-The seed script creates the initial products, matching distribution docs, and the `config/app` document. It is idempotent.
+The seed script creates the initial products, matching distribution docs, and the `config/app` document. It is idempotent and uses the Firebase Admin SDK.
 
 ```bash
 npm install
 npm run seed
 ```
 
-Requires `.env.local` with the Firebase web app config used by the client.
+Requires `GOOGLE_APPLICATION_CREDENTIALS` pointing to a Firebase service account JSON file. Never commit the service account JSON file to the repository.
+
+`.env.local` is still required to run the app locally, but it is not used by `npm run seed`.
 
 ## Setup
 
@@ -176,6 +180,7 @@ Rules live in [firestore.rules](/C:/Users/pablo/OneDrive/Documentos/pallet-codex
 - `productos/{productId}` - read: `admin`, `controlador`, `vendedor`. Write: admin only.
 - `distribucion/{productId}` - read: `admin`, `controlador`, `vendedor`. Write: admin or controlador. `vendedor` can only update their assigned branch stock, only by decreasing it during sale creation.
 - `ventas/{saleId}` - read: admin/controlador, plus `vendedor` only for their assigned branch. Create: admin/controlador, plus `vendedor` only for their assigned branch. Update/delete: admin only.
+- `ingresos/{ingresoId}` - read/create: admin or controlador. Delete: admin only. Update: denied.
 - `proveedorResumen/{productId}` - read: admin or allcovering. Write: admin only.
 - `auditorias/{auditId}` - read/create: admin or controlador. Update/delete: admin only.
 - `config/{docId}` - read: admin, controlador, vendedor. Write: admin only.
