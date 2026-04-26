@@ -181,6 +181,10 @@ Exportar is admin only and downloads CSV files. Available exports:
 - stock actual
 - proveedor / All Covering
 
+## Usuarios
+
+Usuarios is admin only and edits Firestore profiles in `users/{uid}`. It does not create Firebase Authentication users, delete Firebase Authentication users, or change Auth email/password. New users are still created with `npm run setup:users` or in Firebase Authentication.
+
 ## Roles & access control
 
 `AuthProvider` exposes `profile` and `role` alongside the Firebase user. `RoleGuard` is used to gate UI access.
@@ -240,6 +244,7 @@ Implemented:
 
 - auth
 - role profiles
+- admin users profile management
 - sales
 - live stock
 - ingresos
