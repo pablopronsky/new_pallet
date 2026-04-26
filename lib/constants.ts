@@ -1,4 +1,4 @@
-import type { Branch, Role, Product } from "@/types/domain";
+import type { Branch, Role, Product, ProductCategory } from "@/types/domain";
 
 export const BRANCHES: Branch[] = ["gonnet", "laplata", "quilmes"];
 
@@ -16,6 +16,14 @@ export const ROLE_LABELS: Record<Role, string> = {
   vendedor: "Vendedor",
   allcovering: "All Covering",
 };
+
+export const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
+  SPC: "SPC",
+  Laminado: "Laminado",
+  "SPC Budget": "SPC Oferta",
+};
+
+export const BUDGET_PRODUCT_LABEL = "Oferta";
 
 export type InitialProduct = Omit<Product, "id" | "createdAt" | "updatedAt">;
 

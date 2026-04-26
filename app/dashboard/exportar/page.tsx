@@ -25,7 +25,11 @@ import {
   bajaMotivoLabel,
   bajaTipo,
 } from "@/lib/bajas";
-import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import {
+  BRANCHES,
+  BRANCH_LABELS,
+  PRODUCT_CATEGORY_LABELS,
+} from "@/lib/constants";
 import { downloadCsv, toCsv, type CsvColumn } from "@/lib/csv";
 import { getErrorMessage } from "@/lib/errors";
 import type {
@@ -339,7 +343,10 @@ function ExportarContent() {
     },
     {
       header: "categoria",
-      value: (row) => productsById[row.productId]?.categoria,
+      value: (row) => {
+        const category = productsById[row.productId]?.categoria;
+        return category ? PRODUCT_CATEGORY_LABELS[category] : "";
+      },
     },
     {
       header: "costoUSD",
@@ -357,7 +364,10 @@ function ExportarContent() {
 
   const providerColumns: CsvColumn<ProviderSnapshot>[] = [
     { header: "producto", value: (row) => row.nombre },
-    { header: "categoria", value: (row) => row.categoria },
+    {
+      header: "categoria",
+      value: (row) => PRODUCT_CATEGORY_LABELS[row.categoria],
+    },
     { header: "cajasVendidas", value: (row) => finiteNumber(row.cajasVendidas) },
     { header: "cajasRestantes", value: (row) => finiteNumber(row.cajasRestantes) },
     { header: "deudaUSD", value: (row) => finiteNumber(row.deudaUSD) },

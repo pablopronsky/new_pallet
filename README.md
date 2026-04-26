@@ -31,7 +31,7 @@ NP Stock registra inventario en consignación de *All Covering* distribuido en t
 
 - **Role** - `admin` | `controlador` | `vendedor` | `allcovering`. Controla los permisos.
 - **Branch** - `gonnet` | `laplata` | `quilmes`. Ubicaciones físicas que tienen stock.
-- **Product** - metadatos del catálogo SKU: nombre, categoría (`SPC` | `Laminado` | `SPC Budget`), `costoUSD`, `precioVentaUSD`, `esBudget`, `activo`. No guarda cantidades de stock.
+- **Product** - metadatos del catálogo SKU: nombre, categoría (`SPC` | `Laminado` | `SPC Budget`, mostrado como `SPC Oferta`), `costoUSD`, `precioVentaUSD`, `esBudget` (mostrado como `Oferta`), `activo`. No guarda cantidades de stock.
 - **ProductDistribution** (`distribucion/{productId}`) - cajas actuales asignadas por sucursal en `cajasPorSucursal`.
 - **Sale** - venta individual: producto, sucursal, cajas, `montoUSD`, `tipoCambioUSD`, `montoARS`, fecha y vendedor.
 - **IngresoStock** (`ingresos/{id}`) - ingreso de mercadería con sucursal, cajas, `costoUSDPorCaja` y `costoTotalUSD`.

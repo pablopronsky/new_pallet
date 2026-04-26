@@ -10,6 +10,10 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useGenerateProviderSnapshot } from "@/hooks/useGenerateProviderSnapshot";
 import { useProviderSnapshot } from "@/hooks/useProviderSnapshot";
+import {
+  BUDGET_PRODUCT_LABEL,
+  PRODUCT_CATEGORY_LABELS,
+} from "@/lib/constants";
 import { getErrorMessage, logError } from "@/lib/errors";
 import { formatNumberAR, formatUSD } from "@/lib/formatters";
 import type { ProviderSnapshot } from "@/types/domain";
@@ -54,8 +58,10 @@ function ProviderTable({ snapshots }: { snapshots: ProviderSnapshot[] }) {
         header: "Tipo/categoria",
         render: (row) => (
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="neutral">{row.categoria}</Badge>
-            {row.esBudget && <Badge tone="warning">Budget</Badge>}
+            <Badge tone="neutral">{PRODUCT_CATEGORY_LABELS[row.categoria]}</Badge>
+            {row.esBudget && (
+              <Badge tone="warning">{BUDGET_PRODUCT_LABEL}</Badge>
+            )}
           </div>
         ),
       },

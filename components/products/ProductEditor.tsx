@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import {
+  BUDGET_PRODUCT_LABEL,
+  PRODUCT_CATEGORY_LABELS,
+} from "@/lib/constants";
 import type { Product, ProductCategory } from "@/types/domain";
 import type { UpdateProductInput } from "@/hooks/useUpdateProduct";
 
 const CATEGORY_OPTIONS: { value: ProductCategory; label: string }[] = [
-  { value: "SPC", label: "SPC" },
-  { value: "Laminado", label: "Laminado" },
-  { value: "SPC Budget", label: "SPC Budget" },
+  { value: "SPC", label: PRODUCT_CATEGORY_LABELS.SPC },
+  { value: "Laminado", label: PRODUCT_CATEGORY_LABELS.Laminado },
+  { value: "SPC Budget", label: PRODUCT_CATEGORY_LABELS["SPC Budget"] },
 ];
 
 export interface ProductEditorProps {
@@ -152,7 +156,7 @@ export function ProductEditor({ product, saving, onSave, onClose }: ProductEdito
                 disabled={saving}
                 className="h-4 w-4 rounded border-border accent-primary"
               />
-              Es budget
+              Es {BUDGET_PRODUCT_LABEL.toLowerCase()}
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-text-primary">
               <input

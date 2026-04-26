@@ -13,7 +13,12 @@ import { useDistribution } from "@/hooks/useDistribution";
 import { useConfig } from "@/hooks/useConfig";
 import { useUpdateProduct } from "@/hooks/useUpdateProduct";
 import { useUpdateDistribution } from "@/hooks/useUpdateDistribution";
-import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import {
+  BRANCHES,
+  BRANCH_LABELS,
+  BUDGET_PRODUCT_LABEL,
+  PRODUCT_CATEGORY_LABELS,
+} from "@/lib/constants";
 import { getErrorMessage, logError } from "@/lib/errors";
 import { formatUSD } from "@/lib/formatters";
 import type { Branch, BranchBoxes, Product } from "@/types/domain";
@@ -168,7 +173,9 @@ function ProductsSection({ products, loading, error }: ProductsSectionProps) {
       key: "categoria",
       header: "Categoría",
       render: (p) => (
-        <span className="text-text-secondary">{p.categoria}</span>
+        <span className="text-text-secondary">
+          {PRODUCT_CATEGORY_LABELS[p.categoria]}
+        </span>
       ),
     },
     {
@@ -189,10 +196,10 @@ function ProductsSection({ products, loading, error }: ProductsSectionProps) {
     },
     {
       key: "esBudget",
-      header: "Budget",
+      header: BUDGET_PRODUCT_LABEL,
       render: (p) =>
         p.esBudget ? (
-          <Badge tone="warning">Budget</Badge>
+          <Badge tone="warning">{BUDGET_PRODUCT_LABEL}</Badge>
         ) : (
           <span className="text-text-muted">—</span>
         ),
