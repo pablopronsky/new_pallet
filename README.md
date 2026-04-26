@@ -244,6 +244,7 @@ Implementado:
 
 - auth
 - role profiles
+- dashboard con estadísticas avanzadas solo para admin
 - admin users profile management
 - sales
 - live stock
@@ -261,5 +262,7 @@ Implementado:
 ## Notas
 
 - Los valores calculados como deuda, revenue, profit, stock restante y sell-through se derivan de los documentos actuales en tiempo de lectura.
+- El dashboard incluye estadísticas avanzadas solo para admin. Usa un filtro de período para métricas operativas/financieras y mantiene el stock vivo como estado actual. Los demás roles conservan dashboards simples según sus permisos.
+- El dashboard incluye estadísticas de negocio avanzadas solo para admin: rotación, días de stock, stock muerto, pérdidas operativas y alertas de inventario.
 - El portal de proveedor oculta intencionalmente revenue y margen en la UI y lee la colección segura `proveedorResumen`.
 - La ruta `/dashboard` está protegida del lado cliente. Agregar protección del lado servidor antes de tratarla como un límite de seguridad fuerte.

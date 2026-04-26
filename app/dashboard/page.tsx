@@ -1,167 +1,577 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { onSnapshot, query, where } from "firebase/firestore";
-import { Badge } from "@/components/ui/Badge";
+import { useMemo, useState } from "react";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
+import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
+import { useAudits } from "@/hooks/useAudits";
 import { useAuth } from "@/hooks/useAuth";
+import { useBajas } from "@/hooks/useBajas";
 import { useDistribution } from "@/hooks/useDistribution";
+import { useIngresos } from "@/hooks/useIngresos";
 import { useProducts } from "@/hooks/useProducts";
-import { bajaDebtUSD } from "@/lib/bajas";
-import { formatNumberAR, formatUSD } from "@/lib/formatters";
-import { bajasCollection, salesCollection } from "@/lib/firestore";
-import type { BajaStock, Branch, Product, Role, Sale } from "@/types/domain";
+import { useSalesHistory } from "@/hooks/useSalesHistory";
+import { useTraslados } from "@/hooks/useTraslados";
+import {
+  displayNameForUser,
+  useUserProfiles,
+} from "@/hooks/useUserProfiles";
+import { BRANCH_LABELS } from "@/lib/constants";
+import {
+  buildProductMap,
+  calculateAuditAlerts,
+  calculateBranchSummaries,
+  calculateDashboardMetrics,
+  calculateOperationalLosses,
+  calculateProductStats,
+  calculateRecentActivity,
+  calculateStockAlerts,
+  type AuditAlert,
+  type BranchSummary,
+  type DashboardPeriod,
+  type OperationalLossRow,
+  type ProductStat,
+  type RecentActivityRow,
+  type StockAlert,
+} from "@/lib/dashboard";
+import {
+  formatDateAR,
+  formatNumberAR,
+  formatPercent,
+  formatUSD,
+} from "@/lib/formatters";
+import type { Branch, Product } from "@/types/domain";
 
-interface DashboardMetrics {
-  stockDisponible: number;
-  deudaAllCovering: number;
-  revenueUSD: number;
-  utilidadBruta: number;
-}
+const periodOptions: { value: DashboardPeriod; label: string }[] = [
+  { value: "today", label: "Hoy" },
+  { value: "7d", label: "7 días" },
+  { value: "30d", label: "30 días" },
+  { value: "all", label: "Todo" },
+];
 
-interface UseDashboardSalesResult {
-  sales: Sale[];
-  loading: boolean;
-  error: Error | null;
-}
+const activityTone: Record<RecentActivityRow["tipo"], BadgeTone> = {
+  venta: "primary",
+  ingreso: "success",
+  baja: "error",
+  movimiento: "warning",
+  auditoria: "neutral",
+};
 
-interface UseDashboardBajasResult {
-  bajas: BajaStock[];
-  loading: boolean;
-  error: Error | null;
-}
-
-function useDashboardSales(
-  role: Role | null,
-  vendedorBranch: Branch | undefined,
-): UseDashboardSalesResult {
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    if (role === "allcovering" || role === null) {
-      setSales([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    if (role === "vendedor" && !vendedorBranch) {
-      setSales([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    const q =
-      role === "vendedor"
-        ? query(salesCollection(), where("sucursal", "==", vendedorBranch))
-        : salesCollection();
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setSales(snap.docs.map((doc) => doc.data()));
-        setError(null);
-        setLoading(false);
-      },
-      (err) => {
-        setSales([]);
-        setError(err);
-        setLoading(false);
-      },
-    );
-
-    return () => unsub();
-  }, [role, vendedorBranch]);
-
-  return { sales, loading, error };
-}
-
-function useDashboardBajas(role: Role | null): UseDashboardBajasResult {
-  const [bajas, setBajas] = useState<BajaStock[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    if (role !== "admin") {
-      setBajas([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    const unsub = onSnapshot(
-      bajasCollection(),
-      (snap) => {
-        setBajas(snap.docs.map((doc) => doc.data()));
-        setError(null);
-        setLoading(false);
-      },
-      (err) => {
-        setBajas([]);
-        setError(err);
-        setLoading(false);
-      },
-    );
-
-    return () => unsub();
-  }, [role]);
-
-  return { bajas, loading, error };
-}
-
-function buildProductMap(products: Product[]): Record<string, Product> {
-  const byId: Record<string, Product> = {};
-  for (const product of products) byId[product.id] = product;
-  return byId;
-}
-
-function calculateMetrics(params: {
-  productsById: Record<string, Product>;
-  distributions: ReturnType<typeof useDistribution>["distributions"];
-  sales: Sale[];
-  bajas: BajaStock[];
-  branch?: Branch;
-}): DashboardMetrics {
-  const { productsById, distributions, sales, bajas, branch } = params;
-
-  const stockDisponible = distributions.reduce((total, distribution) => {
-    if (branch) {
-      return total + (distribution.cajasPorSucursal[branch] ?? 0);
-    }
-
-    return (
-      total +
-      Object.values(distribution.cajasPorSucursal).reduce(
-        (sum, boxes) => sum + boxes,
-        0,
-      )
-    );
-  }, 0);
-
-  const deudaAllCovering = sales.reduce((total, sale) => {
-    const productCost = productsById[sale.productId]?.costoUSD ?? 0;
-    return total + sale.cajas * productCost;
-  }, 0);
-  const bajaDebt = bajas.reduce(
-    (total, baja) => total + bajaDebtUSD(baja, productsById[baja.productId]),
-    0,
+function periodFilter(
+  period: DashboardPeriod,
+  onChange: (period: DashboardPeriod) => void,
+) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {periodOptions.map((option) => (
+        <Button
+          key={option.value}
+          type="button"
+          size="sm"
+          variant={period === option.value ? "primary" : "secondary"}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
   );
+}
 
-  const revenueUSD = sales.reduce((total, sale) => total + sale.montoUSD, 0);
+function ErrorMessage({ errors }: { errors: Error[] }) {
+  if (errors.length === 0) return null;
 
-  return {
-    stockDisponible,
-    deudaAllCovering: deudaAllCovering + bajaDebt,
-    revenueUSD,
-    utilidadBruta: revenueUSD - deudaAllCovering - bajaDebt,
-  };
+  return (
+    <div className="mt-6 flex flex-col gap-2">
+      {errors.map((error, index) => (
+        <p
+          key={`${error.message}:${index}`}
+          className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
+        >
+          {error.message}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function LinkCard({
+  href,
+  title,
+  badge,
+  description,
+  tone = "primary",
+}: {
+  href: string;
+  title: string;
+  badge: string;
+  description: string;
+  tone?: BadgeTone;
+}) {
+  return (
+    <Link href={href} className="block">
+      <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <Badge tone={tone}>{badge}</Badge>
+        </CardHeader>
+        <p className="text-sm text-text-secondary">{description}</p>
+      </Card>
+    </Link>
+  );
+}
+
+function BranchPerformanceTable({ rows }: { rows: BranchSummary[] }) {
+  const columns: SimpleColumn<BranchSummary>[] = [
+    {
+      key: "sucursal",
+      header: "Sucursal",
+      render: (row) => (
+        <span className="font-medium text-text-primary">{row.label}</span>
+      ),
+    },
+    {
+      key: "ventas",
+      header: "Ventas",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatNumberAR(row.ventasCount)}</span>
+      ),
+    },
+    {
+      key: "revenue",
+      header: "Revenue",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatUSD(row.revenueUSD)}</span>
+      ),
+    },
+    {
+      key: "stock",
+      header: "Stock",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">
+          {formatNumberAR(row.stockDisponible)}
+        </span>
+      ),
+    },
+    {
+      key: "bajas",
+      header: "Bajas",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">
+          {formatNumberAR(row.bajaSucursalCajas)}
+        </span>
+      ),
+    },
+    {
+      key: "movimientos",
+      header: "Movimientos",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">
+          {formatNumberAR(row.movimientosIn + row.movimientosOut)}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Performance por sucursal</CardTitle>
+        <Badge tone="neutral">{rows.length}</Badge>
+      </CardHeader>
+      <SimpleTable<BranchSummary>
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.branch}
+        empty="Sin datos por sucursal"
+      />
+    </Card>
+  );
+}
+
+function ProductPerformanceTable({ rows }: { rows: ProductStat[] }) {
+  const columns: SimpleColumn<ProductStat>[] = [
+    {
+      key: "producto",
+      header: "Producto",
+      render: (row) => (
+        <span className="font-medium text-text-primary">{row.producto}</span>
+      ),
+    },
+    {
+      key: "cajasVendidas",
+      header: "Cajas vendidas",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatNumberAR(row.cajasVendidas)}</span>
+      ),
+    },
+    {
+      key: "rotacion",
+      header: "Rotacion",
+      className: "text-right",
+      render: (row) => (
+        <Badge tone={row.rotacion >= 0.8 ? "success" : "neutral"}>
+          {formatPercent(row.rotacion)}
+        </Badge>
+      ),
+    },
+    {
+      key: "stockActual",
+      header: "Stock actual",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatNumberAR(row.stockActual)}</span>
+      ),
+    },
+    {
+      key: "diasStock",
+      header: "Dias de stock",
+      className: "text-right",
+      render: (row) =>
+        row.diasStock === null ? (
+          <span className="text-text-muted">∞</span>
+        ) : (
+          <span className="tabular-nums">{formatNumberAR(row.diasStock)}</span>
+        ),
+    },
+    {
+      key: "revenue",
+      header: "Revenue",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatUSD(row.revenueUSD)}</span>
+      ),
+    },
+    {
+      key: "deuda",
+      header: "Deuda",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatUSD(row.deudaUSD)}</span>
+      ),
+    },
+    {
+      key: "utilidad",
+      header: "Utilidad",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatUSD(row.utilidadBruta)}</span>
+      ),
+    },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Performance por producto</CardTitle>
+        <Badge tone="neutral">{rows.length}</Badge>
+      </CardHeader>
+      <SimpleTable<ProductStat>
+        columns={columns}
+        rows={rows.slice(0, 10)}
+        rowKey={(row) => row.productId}
+        empty="Sin ventas en el período"
+      />
+    </Card>
+  );
+}
+
+function StockAlertsCard({ rows }: { rows: StockAlert[] }) {
+  const sections = [
+    {
+      type: "sin_stock" as const,
+      title: "Sin stock",
+      badge: "sin stock",
+      tone: "error" as BadgeTone,
+      empty: "Sin productos agotados.",
+    },
+    {
+      type: "stock_bajo" as const,
+      title: "Stock bajo",
+      badge: "stock bajo",
+      tone: "warning" as BadgeTone,
+      empty: "Sin productos con stock bajo.",
+    },
+    {
+      type: "sin_movimiento" as const,
+      title: "Sin movimiento",
+      badge: "sin movimiento",
+      tone: "neutral" as BadgeTone,
+      empty: "Sin stock detenido.",
+    },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Alertas de inventario</CardTitle>
+        <Badge tone={rows.length > 0 ? "warning" : "success"}>{rows.length}</Badge>
+      </CardHeader>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {sections.map((section) => {
+          const sectionRows = rows
+            .filter((row) => row.type === section.type)
+            .slice(0, 8);
+
+          return (
+            <div key={section.type} className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-text-primary">
+                  {section.title}
+                </h3>
+                <Badge tone={section.tone}>{sectionRows.length}</Badge>
+              </div>
+              {sectionRows.length === 0 ? (
+                <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-secondary">
+                  {section.empty}
+                </p>
+              ) : (
+                sectionRows.map((row) => (
+                  <div
+                    key={`${row.type}:${row.productId}`}
+                    className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2"
+                  >
+                    <span className="text-sm font-medium text-text-primary">
+                      {row.producto}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-text-secondary">
+                        {formatNumberAR(row.totalStock)} cajas
+                      </span>
+                      <Badge tone={section.tone}>{section.badge}</Badge>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function AuditAlertsTable({
+  rows,
+  productsById,
+}: {
+  rows: AuditAlert[];
+  productsById: Record<string, Product>;
+}) {
+  const columns: SimpleColumn<AuditAlert>[] = [
+    {
+      key: "producto",
+      header: "Producto",
+      render: (row) => (
+        <span className="font-medium text-text-primary">
+          {productsById[row.item.productId]?.nombre ?? row.item.productId}
+        </span>
+      ),
+    },
+    {
+      key: "sucursal",
+      header: "Sucursal",
+      render: (row) => BRANCH_LABELS[row.item.sucursal],
+    },
+    {
+      key: "sistema",
+      header: "Sistema",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{row.item.cajasSistema}</span>
+      ),
+    },
+    {
+      key: "contado",
+      header: "Contado",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{row.item.cajasContadas}</span>
+      ),
+    },
+    {
+      key: "diferencia",
+      header: "Diferencia",
+      className: "text-right",
+      render: (row) => (
+        <Badge tone={row.item.diferencia > 0 ? "warning" : "error"}>
+          {row.item.diferencia > 0
+            ? `+${row.item.diferencia}`
+            : row.item.diferencia}
+        </Badge>
+      ),
+    },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Diferencias pendientes</CardTitle>
+        <Badge tone={rows.length > 0 ? "error" : "success"}>{rows.length}</Badge>
+      </CardHeader>
+      <SimpleTable<AuditAlert>
+        columns={columns}
+        rows={rows.slice(0, 8)}
+        rowKey={(row) => `${row.auditId}:${row.item.productId}:${row.item.sucursal}`}
+        empty="Sin diferencias pendientes."
+      />
+    </Card>
+  );
+}
+
+function OperationalLossTable({ rows }: { rows: OperationalLossRow[] }) {
+  const columns: SimpleColumn<OperationalLossRow>[] = [
+    {
+      key: "producto",
+      header: "Producto",
+      render: (row) => (
+        <span className="font-medium text-text-primary">{row.producto}</span>
+      ),
+    },
+    {
+      key: "sucursal",
+      header: "Sucursal",
+      render: (row) => BRANCH_LABELS[row.sucursal],
+    },
+    {
+      key: "cajas",
+      header: "Cajas",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatNumberAR(row.cajas)}</span>
+      ),
+    },
+    {
+      key: "usdPerdido",
+      header: "USD perdido",
+      className: "text-right",
+      render: (row) => (
+        <span className="tabular-nums">{formatUSD(row.usdPerdido)}</span>
+      ),
+    },
+    {
+      key: "fecha",
+      header: "Fecha",
+      render: (row) => (
+        <span className="tabular-nums text-text-secondary">
+          {formatDateAR(row.fecha.toDate())}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Perdidas operativas</CardTitle>
+        <Badge tone={rows.length > 0 ? "error" : "success"}>{rows.length}</Badge>
+      </CardHeader>
+      <SimpleTable<OperationalLossRow>
+        columns={columns}
+        rows={rows.slice(0, 10)}
+        rowKey={(row) => row.id}
+        empty="Sin bajas de sucursal en el periodo"
+      />
+    </Card>
+  );
+}
+
+function RecentActivityTable({
+  rows,
+  userNameFor,
+}: {
+  rows: RecentActivityRow[];
+  userNameFor: (uid: string) => string;
+}) {
+  const columns: SimpleColumn<RecentActivityRow>[] = [
+    {
+      key: "fecha",
+      header: "Fecha",
+      render: (row) => (
+        <span className="tabular-nums text-text-secondary">
+          {formatDateAR(row.fecha.toDate())}
+        </span>
+      ),
+    },
+    {
+      key: "tipo",
+      header: "Tipo",
+      render: (row) => (
+        <Badge tone={activityTone[row.tipo]}>
+          {row.tipo === "movimiento" ? "mov." : row.tipo}
+        </Badge>
+      ),
+    },
+    {
+      key: "detalle",
+      header: "Producto",
+      render: (row) => (
+        <span className="font-medium text-text-primary">{row.detalle}</span>
+      ),
+    },
+    {
+      key: "sucursal",
+      header: "Sucursal / origen-destino",
+      render: (row) => (
+        <span className="text-text-secondary">{row.sucursalDetalle}</span>
+      ),
+    },
+    {
+      key: "cajas",
+      header: "Cajas",
+      className: "text-right",
+      render: (row) =>
+        typeof row.cajas === "number" ? (
+          <span className="tabular-nums">{formatNumberAR(row.cajas)}</span>
+        ) : (
+          <span className="text-text-muted">-</span>
+        ),
+    },
+    {
+      key: "importe",
+      header: "Impacto USD",
+      className: "text-right",
+      render: (row) =>
+        typeof row.importeUSD === "number" ? (
+          <span className="tabular-nums">{formatUSD(row.importeUSD)}</span>
+        ) : (
+          <span className="text-text-muted">-</span>
+        ),
+    },
+    {
+      key: "createdBy",
+      header: "Usuario",
+      render: (row) => (
+        <span className="text-xs text-text-secondary">
+          {userNameFor(row.createdBy)}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Últimos movimientos</CardTitle>
+        <Badge tone="neutral">{rows.length}</Badge>
+      </CardHeader>
+      <SimpleTable<RecentActivityRow>
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => `${row.tipo}:${row.id}`}
+        empty="Sin movimientos registrados"
+      />
+    </Card>
+  );
 }
 
 function ProviderDashboard() {
@@ -175,17 +585,12 @@ function ProviderDashboard() {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Link href="/dashboard/proveedor" className="block">
-          <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
-            <CardHeader>
-              <CardTitle>Portal All Covering</CardTitle>
-              <Badge tone="primary">proveedor</Badge>
-            </CardHeader>
-            <p className="text-sm text-text-secondary">
-              Ver cajas vendidas, cajas restantes y deuda consolidada.
-            </p>
-          </Card>
-        </Link>
+        <LinkCard
+          href="/dashboard/proveedor"
+          title="Portal All Covering"
+          badge="proveedor"
+          description="Ver cajas vendidas, cajas restantes y deuda consolidada."
+        />
       </div>
     </>
   );
@@ -197,119 +602,235 @@ function ControladorDashboard() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-sm text-text-secondary">
-          Operaciones de auditoria y movimientos de stock
+          Operaciones de auditoría y movimientos de stock
         </p>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Link href="/dashboard/auditorias" className="block">
-          <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
-            <CardHeader>
-              <CardTitle>Auditorias</CardTitle>
-              <Badge tone="primary">controlador</Badge>
-            </CardHeader>
-            <p className="text-sm text-text-secondary">
-              Realizar conteos fisicos y registrar diferencias contra el stock
-              del sistema.
-            </p>
-          </Card>
-        </Link>
-        <Link href="/dashboard/traslados" className="block">
-          <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
-            <CardHeader>
-              <CardTitle>Movimientos</CardTitle>
-              <Badge tone="success">stock</Badge>
-            </CardHeader>
-            <p className="text-sm text-text-secondary">
-              Transferir mercaderia entre sucursales sin cambiar el stock
-              global.
-            </p>
-          </Card>
-        </Link>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <LinkCard
+          href="/dashboard/auditorias"
+          title="Auditorías"
+          badge="control"
+          description="Realizar conteos físicos y registrar diferencias contra el stock del sistema."
+        />
+        <LinkCard
+          href="/dashboard/traslados"
+          title="Movimientos"
+          badge="stock"
+          tone="success"
+          description="Transferir mercadería entre sucursales sin cambiar el stock global."
+        />
       </div>
     </>
   );
 }
 
-function InternalDashboard() {
-  const { role, profile } = useAuth();
-  const vendedorBranch =
-    role === "vendedor" ? profile?.sucursalAsignada : undefined;
-  const {
-    products,
-    loading: productsLoading,
-    error: productsError,
-  } = useProducts({ activeOnly: false });
+function VendedorDashboard({ branch }: { branch: Branch }) {
+  const { products, loading: productsLoading, error: productsError } =
+    useProducts({ activeOnly: false });
   const {
     distributions,
     loading: distributionsLoading,
     error: distributionsError,
   } = useDistribution();
-  const {
-    sales,
-    loading: salesLoading,
-    error: salesError,
-  } = useDashboardSales(role, vendedorBranch);
-  const {
-    bajas,
-    loading: bajasLoading,
-    error: bajasError,
-  } = useDashboardBajas(role);
-
+  const { sales, loading: salesLoading, error: salesError } = useSalesHistory({
+    sucursal: branch,
+  });
   const productsById = useMemo(() => buildProductMap(products), [products]);
   const metrics = useMemo(
     () =>
-      calculateMetrics({
+      calculateDashboardMetrics({
         productsById,
         distributions,
         sales,
-        bajas,
-        branch: vendedorBranch,
+        bajas: [],
+        audits: [],
+        period: "all",
+        branch,
       }),
-    [bajas, distributions, productsById, sales, vendedorBranch],
+    [branch, distributions, productsById, sales],
   );
-
-  const loading =
-    productsLoading || distributionsLoading || salesLoading || bajasLoading;
-  const error = productsError ?? distributionsError ?? salesError ?? bajasError;
-  const hasMissingBranch = role === "vendedor" && !vendedorBranch;
-  const hasAnyData =
-    products.length > 0 ||
-    distributions.length > 0 ||
-    sales.length > 0 ||
-    bajas.length > 0;
+  const loading = productsLoading || distributionsLoading || salesLoading;
+  const errors = [productsError, distributionsError, salesError].filter(
+    (error): error is Error => Boolean(error),
+  );
 
   return (
     <>
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-sm text-text-secondary">
-          {vendedorBranch
-            ? "Resumen de tu sucursal asignada"
-            : "Resumen general de consignacion"}
+          Sucursal asignada: {BRANCH_LABELS[branch]}
         </p>
       </div>
 
-      {error && (
-        <p className="mt-6 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
-          No se pudieron cargar los datos del dashboard: {error.message}
-        </p>
-      )}
+      <ErrorMessage errors={errors} />
 
-      {hasMissingBranch && (
-        <Card className="mt-6">
-          <p className="text-sm text-text-secondary">
-            Tu usuario no tiene una sucursal asignada. El dashboard muestra
-            valores en cero hasta que se configure tu perfil.
-          </p>
-        </Card>
-      )}
+      <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <StatCard
+          label="Stock disponible"
+          value={
+            loading
+              ? "..."
+              : `${formatNumberAR(metrics.stockDisponible)} cajas`
+          }
+          hint="Stock vivo actual, no depende del período."
+          tone="success"
+        />
+        <StatCard
+          label="Ventas"
+          value={loading ? "..." : metrics.ventasCount}
+          tone="primary"
+        />
+        <StatCard
+          label="Revenue USD"
+          value={loading ? "..." : formatUSD(metrics.revenueUSD)}
+          tone="accent"
+        />
+        <StatCard
+          label="Cajas vendidas"
+          value={loading ? "..." : formatNumberAR(metrics.cajasVendidas)}
+        />
+      </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <LinkCard
+          href="/dashboard/ventas"
+          title="Ventas"
+          badge="sucursal"
+          description="Registrar ventas de la sucursal asignada."
+        />
+      </div>
+    </>
+  );
+}
+
+function AdminDashboard() {
+  const [period, setPeriod] = useState<DashboardPeriod>("30d");
+  const { products, loading: productsLoading, error: productsError } =
+    useProducts({ activeOnly: false });
+  const {
+    distributions,
+    loading: distributionsLoading,
+    error: distributionsError,
+  } = useDistribution();
+  const { sales, loading: salesLoading, error: salesError } =
+    useSalesHistory({});
+  const { ingresos, loading: ingresosLoading, error: ingresosError } =
+    useIngresos();
+  const { bajas, loading: bajasLoading, error: bajasError } = useBajas();
+  const { traslados, loading: trasladosLoading, error: trasladosError } =
+    useTraslados();
+  const { audits, loading: auditsLoading, error: auditsError } = useAudits();
+  const { byUid: usersByUid, error: usersError } = useUserProfiles();
+
+  const productsById = useMemo(() => buildProductMap(products), [products]);
+  const metrics = useMemo(
+    () =>
+      calculateDashboardMetrics({
+        productsById,
+        distributions,
+        sales,
+        bajas,
+        audits,
+        period,
+      }),
+    [audits, bajas, distributions, period, productsById, sales],
+  );
+  const branchSummaries = useMemo(
+    () =>
+      calculateBranchSummaries({
+        distributions,
+        sales,
+        bajas,
+        traslados,
+        audits,
+        period,
+      }),
+    [audits, bajas, distributions, period, sales, traslados],
+  );
+  const productStats = useMemo(
+    () =>
+      calculateProductStats({
+        products,
+        productsById,
+        distributions,
+        sales,
+        bajas,
+        period,
+      }),
+    [bajas, distributions, period, products, productsById, sales],
+  );
+  const stockAlerts = useMemo(
+    () => calculateStockAlerts({ productsById, distributions, sales }),
+    [distributions, productsById, sales],
+  );
+  const operationalLosses = useMemo(
+    () =>
+      calculateOperationalLosses({
+        productsById,
+        bajas,
+        period,
+      }),
+    [bajas, period, productsById],
+  );
+  const auditAlerts = useMemo(
+    () => calculateAuditAlerts(audits, { period }),
+    [audits, period],
+  );
+  const recentActivity = useMemo(
+    () =>
+      calculateRecentActivity({
+        productsById,
+        sales,
+        ingresos,
+        bajas,
+        traslados,
+        audits,
+        period,
+        limit: 10,
+      }),
+    [audits, bajas, ingresos, period, productsById, sales, traslados],
+  );
+  const loading =
+    productsLoading ||
+    distributionsLoading ||
+    salesLoading ||
+    ingresosLoading ||
+    bajasLoading ||
+    trasladosLoading ||
+    auditsLoading;
+  const errors = [
+    productsError,
+    distributionsError,
+    salesError,
+    ingresosError,
+    bajasError,
+    trasladosError,
+    auditsError,
+    usersError,
+  ].filter((error): error is Error => Boolean(error));
+
+  const userNameFor = (uid: string) =>
+    displayNameForUser(usersByUid[uid], uid);
+
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-text-secondary">
+          Resumen operativo y financiero
+        </p>
+      </div>
+
+      <div className="mt-4">{periodFilter(period, setPeriod)}</div>
+      <ErrorMessage errors={errors} />
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Deuda All Covering"
           value={loading ? "..." : formatUSD(metrics.deudaAllCovering)}
-          hint="Ventas y bajas de sucursal por costo del producto"
+          hint="Ventas y bajas de sucursal del periodo"
           tone="accent"
         />
         <StatCard
@@ -319,87 +840,84 @@ function InternalDashboard() {
           tone="primary"
         />
         <StatCard
-          label="Stock disponible"
+          label="Revenue USD"
+          value={loading ? "..." : formatUSD(metrics.revenueUSD)}
+          tone="accent"
+        />
+        <StatCard
+          label="Stock total (cajas)"
           value={
             loading
               ? "..."
               : `${formatNumberAR(metrics.stockDisponible)} cajas`
           }
-          hint={
-            vendedorBranch
-              ? "Stock vivo de tu sucursal"
-              : "Stock vivo de todas las sucursales"
-          }
+          hint="Stock corresponde al estado actual, no depende del periodo."
+          tone="success"
+        />
+        <StatCard
+          label="Cajas vendidas"
+          value={loading ? "..." : formatNumberAR(metrics.cajasVendidas)}
+          hint={`${formatNumberAR(metrics.ventasCount)} ventas`}
+        />
+        <StatCard
+          label="USD perdido por bajas"
+          value={loading ? "..." : formatUSD(metrics.bajasDebtUSD)}
+          hint={`${formatNumberAR(metrics.bajaSucursalCajas)} cajas de sucursal`}
+          tone={metrics.bajaSucursalCajas > 0 ? "danger" : "default"}
+        />
+        <StatCard
+          label="Diferencias pendientes"
+          value={loading ? "..." : metrics.pendingAuditDifferences}
+          tone={metrics.pendingAuditDifferences > 0 ? "danger" : "success"}
         />
       </div>
 
-      {!loading && !error && !hasAnyData && (
-        <Card className="mt-6">
-          <p className="text-sm text-text-secondary">Sin datos suficientes</p>
-        </Card>
-      )}
+      <BranchPerformanceTable rows={branchSummaries} />
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Link href="/dashboard/ventas" className="block">
-          <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
-            <CardHeader>
-              <CardTitle>Ventas</CardTitle>
-              <Badge tone="primary">operacion</Badge>
-            </CardHeader>
-            <p className="text-sm text-text-secondary">
-              Registrar ventas y descontar stock vivo.
-            </p>
-          </Card>
-        </Link>
+      <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+        <ProductPerformanceTable rows={productStats} />
+        <StockAlertsCard rows={stockAlerts} />
+      </div>
 
-        {role === "admin" && (
-          <Link href="/dashboard/ingresos" className="block">
-            <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
-              <CardHeader>
-                <CardTitle>Ingresos</CardTitle>
-                <Badge tone="success">stock</Badge>
-              </CardHeader>
-              <p className="text-sm text-text-secondary">
-                Cargar mercaderia recibida por sucursal.
-              </p>
-            </Card>
-          </Link>
-        )}
+      <OperationalLossTable rows={operationalLosses} />
+      <AuditAlertsTable rows={auditAlerts} productsById={productsById} />
+      <RecentActivityTable rows={recentActivity} userNameFor={userNameFor} />
 
-        {role === "admin" && (
-          <Link href="/dashboard/bajas" className="block">
-            <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
-              <CardHeader>
-                <CardTitle>Bajas</CardTitle>
-                <Badge tone="warning">stock</Badge>
-              </CardHeader>
-              <p className="text-sm text-text-secondary">
-                Registrar salidas no vinculadas a ventas.
-              </p>
-            </Card>
-          </Link>
-        )}
-
-        {role === "admin" && (
-          <Link href="/dashboard/traslados" className="block">
-            <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-2">
-              <CardHeader>
-                <CardTitle>Movimientos</CardTitle>
-                <Badge tone="success">stock</Badge>
-              </CardHeader>
-              <p className="text-sm text-text-secondary">
-                Mover mercaderia entre sucursales.
-              </p>
-            </Card>
-          </Link>
-        )}
+      <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <LinkCard
+          href="/dashboard/ventas"
+          title="Ventas"
+          badge="operación"
+          description="Registrar ventas y descontar stock vivo."
+        />
+        <LinkCard
+          href="/dashboard/ingresos"
+          title="Ingresos"
+          badge="stock"
+          tone="success"
+          description="Cargar mercadería recibida por sucursal."
+        />
+        <LinkCard
+          href="/dashboard/bajas"
+          title="Bajas"
+          badge="stock"
+          tone="warning"
+          description="Registrar salidas no vinculadas a ventas."
+        />
+        <LinkCard
+          href="/dashboard/traslados"
+          title="Movimientos"
+          badge="stock"
+          tone="success"
+          description="Mover mercadería entre sucursales."
+        />
       </div>
     </>
   );
 }
 
 export default function DashboardPage() {
-  const { role, loading, profileLoading } = useAuth();
+  const { role, loading, profileLoading, profile } = useAuth();
 
   if (loading || profileLoading) {
     return (
@@ -417,5 +935,30 @@ export default function DashboardPage() {
     return <ControladorDashboard />;
   }
 
-  return <InternalDashboard />;
+  if (role === "vendedor") {
+    if (!profile?.sucursalAsignada) {
+      return (
+        <Card>
+          <p className="text-sm text-text-secondary">
+            Tu usuario no tiene una sucursal asignada. El dashboard muestra un
+            estado vacío hasta que se configure tu perfil.
+          </p>
+        </Card>
+      );
+    }
+
+    return <VendedorDashboard branch={profile.sucursalAsignada} />;
+  }
+
+  if (role === "admin") {
+    return <AdminDashboard />;
+  }
+
+  return (
+    <Card>
+      <p className="text-sm text-text-secondary">
+        No hay un perfil activo para mostrar el dashboard.
+      </p>
+    </Card>
+  );
 }
