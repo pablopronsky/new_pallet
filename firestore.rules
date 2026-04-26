@@ -238,6 +238,35 @@ service cloud.firestore {
           || request.resource.data.notas is string);
     }
 
+    function isValidAuditCreate() {
+      return request.resource.data.keys().hasOnly([
+          'items',
+          'sucursal',
+          'fecha',
+          'createdBy',
+          'cerrada',
+          'resuelta',
+          'notas'
+        ])
+        && request.resource.data.keys().hasAll([
+          'items',
+          'sucursal',
+          'fecha',
+          'createdBy',
+          'cerrada',
+          'resuelta'
+        ])
+        && request.resource.data.sucursal in ['gonnet', 'laplata', 'quilmes']
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && request.resource.data.fecha is timestamp
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.cerrada == true
+        && request.resource.data.resuelta == false
+        && (!('notas' in request.resource.data)
+          || request.resource.data.notas is string);
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow write: if isAdmin();
@@ -307,7 +336,7 @@ service cloud.firestore {
 
     match /auditorias/{auditId} {
       allow read: if isAdmin() || isControlador();
-      allow create: if isAdmin() || isControlador();
+      allow create: if (isAdmin() || isControlador()) && isValidAuditCreate();
       allow update, delete: if isAdmin();
     }
 

@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { StockAvailabilityError } from "@/lib/calculations";
 import { BAJA_MOTIVOS, BAJA_TIPOS } from "@/lib/bajas";
 import { BRANCHES } from "@/lib/constants";
+import { logError } from "@/lib/errors";
 import { db } from "@/lib/firebase";
 import {
   bajasCollection,
@@ -197,6 +198,7 @@ export function useBajas(): UseBajasResult {
           });
         });
       } catch (err) {
+        logError("useBajas.createBaja", err);
         const e =
           err instanceof Error ? err : new Error("No se pudo crear la baja");
         setError(e);

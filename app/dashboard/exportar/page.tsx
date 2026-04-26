@@ -27,6 +27,7 @@ import {
 } from "@/lib/bajas";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
 import { downloadCsv, toCsv, type CsvColumn } from "@/lib/csv";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   Audit,
   AuditItem,
@@ -400,10 +401,10 @@ function ExportarContent() {
         <div className="mt-6 flex flex-col gap-2">
           {errors.map((error, index) => (
             <p
-              key={`${error.message}:${index}`}
+              key={`${getErrorMessage(error)}:${index}`}
               className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
             >
-              {error.message}
+              {getErrorMessage(error, "No se pudieron cargar los datos para exportar.")}
             </p>
           ))}
         </div>

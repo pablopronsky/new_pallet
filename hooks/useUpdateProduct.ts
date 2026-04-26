@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { updateDoc, serverTimestamp } from "firebase/firestore";
 import { productDoc } from "@/lib/firestore";
+import { logError } from "@/lib/errors";
 import type { ProductCategory } from "@/types/domain";
 
 const VALID_CATEGORIES: ProductCategory[] = ["SPC", "Laminado", "SPC Budget"];
@@ -74,6 +75,7 @@ export function useUpdateProduct(): UseUpdateProductResult {
           updatedAt: serverTimestamp(),
         });
       } catch (err) {
+        logError("useUpdateProduct.updateProduct", err);
         const e =
           err instanceof Error ? err : new Error("Error al guardar producto");
         setError(e);

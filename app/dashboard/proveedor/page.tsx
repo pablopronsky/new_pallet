@@ -10,6 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useGenerateProviderSnapshot } from "@/hooks/useGenerateProviderSnapshot";
 import { useProviderSnapshot } from "@/hooks/useProviderSnapshot";
+import { getErrorMessage, logError } from "@/lib/errors";
 import { formatNumberAR, formatUSD } from "@/lib/formatters";
 import type { ProviderSnapshot } from "@/types/domain";
 
@@ -140,8 +141,8 @@ function ProviderContent() {
       await generateProviderSnapshot();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch {
-      // The hook exposes the error for rendering.
+    } catch (err) {
+      logError("actualizar resumen proveedor", err);
     }
   }
 
@@ -172,7 +173,7 @@ function ProviderContent() {
             )}
             {generateError && (
               <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-                {generateError.message}
+                {getErrorMessage(generateError, "No se pudo actualizar el resumen proveedor.")}
               </p>
             )}
           </div>
@@ -214,7 +215,7 @@ function ProviderContent() {
 
         {error && (
           <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-            {error.message}
+            {getErrorMessage(error, "No se pudo cargar el resumen proveedor.")}
           </p>
         )}
 

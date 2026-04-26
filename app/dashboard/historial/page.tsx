@@ -26,6 +26,7 @@ import {
   bajaTipo,
 } from "@/lib/bajas";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/errors";
 import { formatDateAR, formatUSD } from "@/lib/formatters";
 import type {
   Audit,
@@ -511,10 +512,10 @@ function HistoryTable({
         <div className="mb-4 flex flex-col gap-2">
           {errors.map((error, index) => (
             <p
-              key={`${error.message}:${index}`}
+              key={`${getErrorMessage(error)}:${index}`}
               className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
             >
-              {error.message}
+              {getErrorMessage(error, "No se pudieron cargar los movimientos.")}
             </p>
           ))}
         </div>

@@ -16,6 +16,7 @@ import {
   calculateTotalAvailableBoxes,
 } from "@/lib/calculations";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/errors";
 import { formatPercent } from "@/lib/formatters";
 import type { Branch, Product, ProductDistribution } from "@/types/domain";
 import { cn } from "@/lib/cn";
@@ -127,11 +128,14 @@ function StockTable({ rows }: { rows: StockRow[] }) {
 }
 
 function StockContent() {
-  const { products, loading: productsLoading } = useProducts();
-  const { byProductId, loading: distLoading } = useDistribution();
-  const { sales, loading: salesLoading } = useSalesList();
+  const { products, loading: productsLoading, error: productsError } = useProducts();
+  const { byProductId, loading: distLoading, error: distError } = useDistribution();
+  const { sales, loading: salesLoading, error: salesError } = useSalesList();
 
   const loading = productsLoading || distLoading || salesLoading;
+  const errors = [productsError, distError, salesError].filter(
+    (error): error is Error => Boolean(error),
+  );
 
   const rows: StockRow[] = useMemo(() => {
     const soldByProduct = calculateSoldBoxesByProduct(sales);
@@ -204,6 +208,18 @@ function StockContent() {
             <span className="text-xs text-text-muted">Cargando...</span>
           )}
         </CardHeader>
+        {errors.length > 0 && (
+          <div className="mb-4 flex flex-col gap-2">
+            {errors.map((error, index) => (
+              <p
+                key={`${getErrorMessage(error)}:${index}`}
+                className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+              >
+                {getErrorMessage(error, "No se pudo cargar el stock.")}
+              </p>
+            ))}
+          </div>
+        )}
         <StockTable rows={rows} />
       </Card>
     </>

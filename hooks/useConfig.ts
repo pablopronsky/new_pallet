@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
 import { configDoc } from "@/lib/firestore";
 import { useAuth } from "@/hooks/useAuth";
+import { logError } from "@/lib/errors";
 import type { AppConfig } from "@/types/domain";
 
 export interface UseConfigResult {
@@ -48,6 +49,7 @@ export function useConfig(): UseConfigResult {
           ...(user ? { updatedBy: user.uid } : {}),
         });
       } catch (err) {
+        logError("useConfig.updateTipoCambio", err);
         const e = err instanceof Error ? err : new Error("Error al guardar tipo de cambio");
         setError(e);
         throw e;

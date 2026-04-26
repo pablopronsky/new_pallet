@@ -52,6 +52,7 @@ export interface AuditItem {
 export interface Audit {
   id: string;
   items: AuditItem[];
+  sucursal?: Branch;
   fecha: Timestamp;
   createdBy: string;
   cerrada: boolean;

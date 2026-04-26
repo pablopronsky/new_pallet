@@ -16,6 +16,7 @@ import {
   StockAvailabilityError,
   validateStockAvailability,
 } from "@/lib/calculations";
+import { logError } from "@/lib/errors";
 import { useAuth } from "@/hooks/useAuth";
 import type { Branch, ProductDistribution, Sale } from "@/types/domain";
 
@@ -169,6 +170,7 @@ export function useSales(): UseSalesResult {
           montoARS: amounts.montoARS,
         };
       } catch (err) {
+        logError("useSales.createSale", err);
         const e =
           err instanceof StockAvailabilityError
             ? err

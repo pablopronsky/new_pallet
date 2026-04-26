@@ -5,6 +5,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
@@ -15,6 +16,7 @@ import {
   type UseAuditsResult,
 } from "@/hooks/useAudits";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage, logError } from "@/lib/errors";
 import { formatDateAR } from "@/lib/formatters";
 import type {
   Audit,
@@ -70,6 +72,7 @@ interface AuditFormProps {
   productsLoading: boolean;
   byProductId: Record<string, ProductDistribution>;
   distLoading: boolean;
+  defaultBranch: Branch;
   auditState: Pick<
     UseAuditsResult,
     "createAudit" | "submitting" | "error"
@@ -81,9 +84,11 @@ function AuditForm({
   productsLoading,
   byProductId,
   distLoading,
+  defaultBranch,
   auditState,
 }: AuditFormProps) {
   const { createAudit, submitting, error } = auditState;
+  const [selectedBranch, setSelectedBranch] = useState<Branch>(defaultBranch);
   const [drafts, setDrafts] = useState<Record<CellKey, CellDraft>>({});
   const [generalNotas, setGeneralNotas] = useState("");
   const [success, setSuccess] = useState(false);
@@ -128,38 +133,36 @@ function AuditForm({
     const missing: string[] = [];
 
     for (const product of products) {
-      for (const branch of BRANCHES) {
-        const d = getDraft(product.id, branch);
-        const raw = d.counted.trim();
-        const cajasSistema = systemBoxes(product.id, branch);
-        const notas = d.notas.trim();
-        if (!raw) {
-          if (cajasSistema > 0) {
-            missing.push(`${product.nombre} / ${BRANCH_LABELS[branch]}`);
-            continue;
-          }
+      const d = getDraft(product.id, selectedBranch);
+      const raw = d.counted.trim();
+      const cajasSistema = systemBoxes(product.id, selectedBranch);
+      const notas = d.notas.trim();
+      if (!raw) {
+        if (cajasSistema > 0) {
+          missing.push(`${product.nombre} / ${BRANCH_LABELS[selectedBranch]}`);
           continue;
         }
-        const n = parseInt(raw, 10);
-        if (
-          !Number.isFinite(n) ||
-          !Number.isInteger(n) ||
-          n < 0 ||
-          String(n) !== raw
-        ) {
-          setFormError(
-            `Valor inválido para ${product.nombre} / ${BRANCH_LABELS[branch]}: debe ser un entero >= 0`,
-          );
-          return;
-        }
-        items.push({
-          productId: product.id,
-          sucursal: branch,
-          cajasSistema,
-          cajasContadas: n,
-          ...(notas ? { notas } : {}),
-        });
+        continue;
       }
+      const n = parseInt(raw, 10);
+      if (
+        !Number.isFinite(n) ||
+        !Number.isInteger(n) ||
+        n < 0 ||
+        String(n) !== raw
+      ) {
+        setFormError(
+          `Valor inválido para ${product.nombre} / ${BRANCH_LABELS[selectedBranch]}: debe ser un entero >= 0`,
+        );
+        return;
+      }
+      items.push({
+        productId: product.id,
+        sucursal: selectedBranch,
+        cajasSistema,
+        cajasContadas: n,
+        ...(notas ? { notas } : {}),
+      });
     }
 
     if (missing.length > 0) {
@@ -176,6 +179,7 @@ function AuditForm({
 
     try {
       await createAudit({
+        sucursal: selectedBranch,
         items,
         ...(generalNotas.trim() ? { notas: generalNotas.trim() } : {}),
       });
@@ -183,8 +187,9 @@ function AuditForm({
       setGeneralNotas("");
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3500);
-    } catch {
-      // error is surfaced via hook's `error` state
+    } catch (err) {
+      logError("guardar auditoría", err);
+      setFormError(getErrorMessage(err, "No se pudo guardar la auditoría."));
     }
   }
 
@@ -198,10 +203,22 @@ function AuditForm({
       </CardHeader>
 
       <p className="mb-4 text-xs text-text-muted">
-        Ingrese las cajas contadas físicamente por sucursal. El sistema las
-        compara con el stock actual, pero no modifica el stock ni registra
-        ventas.
+        Ingrese las cajas contadas físicamente para una sucursal. El sistema las
+        compara con el stock actual, pero no modifica stock ni registra ventas.
       </p>
+
+      <div className="mb-4 max-w-xs">
+        <Select
+          label="Sucursal auditada"
+          value={selectedBranch}
+          onChange={(e) => setSelectedBranch(e.target.value as Branch)}
+          disabled={submitting}
+          options={BRANCHES.map((branch) => ({
+            value: branch,
+            label: BRANCH_LABELS[branch],
+          }))}
+        />
+      </div>
 
       <div className="mb-3 flex flex-col gap-2">
         {success && (
@@ -211,7 +228,12 @@ function AuditForm({
           />
         )}
         {formError && <FeedbackBanner message={formError} tone="error" />}
-        {error && <FeedbackBanner message={error.message} tone="error" />}
+        {error && (
+          <FeedbackBanner
+            message={getErrorMessage(error, "No se pudo guardar la auditoría.")}
+            tone="error"
+          />
+        )}
       </div>
 
       {!loading && (
@@ -238,21 +260,20 @@ function AuditForm({
                   </td>
                 </tr>
               )}
-              {products.flatMap((product) =>
-                BRANCHES.map((branch) => {
-                  const draft = getDraft(product.id, branch);
-                  const sys = systemBoxes(product.id, branch);
-                  const diff = computeDifference(product.id, branch);
+              {products.map((product) => {
+                  const draft = getDraft(product.id, selectedBranch);
+                  const sys = systemBoxes(product.id, selectedBranch);
+                  const diff = computeDifference(product.id, selectedBranch);
                   return (
                     <tr
-                      key={cellKey(product.id, branch)}
+                      key={cellKey(product.id, selectedBranch)}
                       className="hover:bg-surface-2/60 transition-colors"
                     >
                       <td className="px-4 py-2 font-medium text-text-primary">
                         {product.nombre}
                       </td>
                       <td className="px-4 py-2 text-text-secondary">
-                        {BRANCH_LABELS[branch]}
+                        {BRANCH_LABELS[selectedBranch]}
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums">
                         {sys}
@@ -267,7 +288,7 @@ function AuditForm({
                           disabled={submitting}
                           placeholder={sys === 0 ? "0" : undefined}
                           onChange={(e) =>
-                            updateDraft(product.id, branch, {
+                            updateDraft(product.id, selectedBranch, {
                               counted: e.target.value,
                             })
                           }
@@ -297,7 +318,7 @@ function AuditForm({
                           disabled={submitting}
                           placeholder="Opcional"
                           onChange={(e) =>
-                            updateDraft(product.id, branch, {
+                            updateDraft(product.id, selectedBranch, {
                               notas: e.target.value,
                             })
                           }
@@ -306,8 +327,7 @@ function AuditForm({
                       </td>
                     </tr>
                   );
-                }),
-              )}
+                })}
             </tbody>
           </table>
         </div>
@@ -366,6 +386,10 @@ function formatDifference(value: number): string {
   return value > 0 ? `+${value}` : String(value);
 }
 
+function auditBranchLabel(audit: Audit): string {
+  return audit.sucursal ? BRANCH_LABELS[audit.sucursal] : "Todas";
+}
+
 function RecentAudits({ auditState, productById }: RecentAuditsProps) {
   const { audits, loading, error } = auditState;
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -401,6 +425,11 @@ function RecentAudits({ auditState, productById }: RecentAuditsProps) {
           {formatDateAR(r.audit.fecha.toDate())}
         </span>
       ),
+    },
+    {
+      key: "sucursal",
+      header: "Sucursal auditada",
+      render: (r) => auditBranchLabel(r.audit),
     },
     {
       key: "createdBy",
@@ -476,7 +505,10 @@ function RecentAudits({ auditState, productById }: RecentAuditsProps) {
 
       {error && (
         <div className="mb-3">
-          <FeedbackBanner message={error.message} tone="error" />
+          <FeedbackBanner
+            message={getErrorMessage(error, "No se pudieron cargar las auditorías.")}
+            tone="error"
+          />
         </div>
       )}
 
@@ -500,7 +532,8 @@ function RecentAudits({ auditState, productById }: RecentAuditsProps) {
                   Detalle de auditoría
                 </p>
                 <p className="text-xs text-text-muted">
-                  {formatDateAR(row.audit.fecha.toDate())}
+                  {formatDateAR(row.audit.fecha.toDate())} ·{" "}
+                  {auditBranchLabel(row.audit)}
                 </p>
               </div>
               {row.differenceCount === 0 && (
@@ -689,8 +722,8 @@ function AdminAlerts({ auditState, productById }: AdminAlertsProps) {
             size="sm"
             variant="secondary"
             onClick={() => {
-              markAuditResolved(r.audit.id).catch(() => {
-                /* error surfaced via hook */
+              markAuditResolved(r.audit.id).catch((err) => {
+                logError("marcar auditoría resuelta", err);
               });
             }}
             disabled={resolving}
@@ -721,7 +754,10 @@ function AdminAlerts({ auditState, productById }: AdminAlertsProps) {
 
       {error && (
         <div className="mb-3">
-          <FeedbackBanner message={error.message} tone="error" />
+          <FeedbackBanner
+            message={getErrorMessage(error, "No se pudieron cargar las auditorías.")}
+            tone="error"
+          />
         </div>
       )}
 
@@ -740,7 +776,7 @@ function AdminAlerts({ auditState, productById }: AdminAlertsProps) {
 // ---------------------------------------------------------------------------
 
 function AuditoriasContent() {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const auditState = useAudits();
   const { products, loading: productsLoading } = useProducts({
     activeOnly: role !== "admin",
@@ -765,6 +801,7 @@ function AuditoriasContent() {
         productsLoading={productsLoading}
         byProductId={byProductId}
         distLoading={distLoading}
+        defaultBranch={profile?.sucursalAsignada ?? "gonnet"}
         auditState={auditState}
       />
       <RecentAudits auditState={auditState} productById={productById} />

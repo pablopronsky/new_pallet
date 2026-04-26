@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { distributionDoc, saleDoc } from "@/lib/firestore";
+import { logError } from "@/lib/errors";
 import type { ProductDistribution } from "@/types/domain";
 
 export interface UseDeleteSaleResult {
@@ -57,6 +58,7 @@ export function useDeleteSale(): UseDeleteSaleResult {
         tx.delete(saleRef);
       });
     } catch (err) {
+      logError("useDeleteSale.deleteSale", err);
       const e = err instanceof Error ? err : new Error("Failed to delete sale");
       setError(e);
       throw e;

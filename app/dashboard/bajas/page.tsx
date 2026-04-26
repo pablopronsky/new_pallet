@@ -19,6 +19,7 @@ import {
   bajaTipo,
 } from "@/lib/bajas";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage, logError } from "@/lib/errors";
 import { formatDateAR, formatNumberAR, formatUSD } from "@/lib/formatters";
 import type { BajaMotivo, BajaStock, BajaTipo, Branch } from "@/types/domain";
 
@@ -232,9 +233,8 @@ function BajasContent() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setFormError(
-        err instanceof Error ? err : new Error("No se pudo crear la baja"),
-      );
+      logError("registrar baja", err);
+      setFormError(new Error(getErrorMessage(err, "No se pudo registrar la baja.")));
     }
   }
 
@@ -347,13 +347,13 @@ function BajasContent() {
 
           {(formError || error) && (
             <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-              {(formError ?? error)!.message}
+              {getErrorMessage(formError ?? error, "No se pudo registrar la baja.")}
             </p>
           )}
 
           {success && (
             <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
-              Baja registrada.
+              Baja registrada correctamente.
             </p>
           )}
 

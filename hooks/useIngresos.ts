@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
 import { BRANCHES } from "@/lib/constants";
+import { logError } from "@/lib/errors";
 import { db } from "@/lib/firebase";
 import {
   COLLECTIONS,
@@ -173,6 +174,7 @@ export function useIngresos(): UseIngresosResult {
           });
         });
       } catch (err) {
+        logError("useIngresos.createIngreso", err);
         const e =
           err instanceof Error ? err : new Error("No se pudo crear el ingreso");
         setError(e);

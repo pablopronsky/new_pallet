@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { logError } from "@/lib/errors";
 import { db } from "@/lib/firebase";
 import {
   COLLECTIONS,
@@ -153,6 +154,7 @@ export function useTraslados(): UseTrasladosResult {
           });
         });
       } catch (err) {
+        logError("useTraslados.createTraslado", err);
         const e =
           err instanceof Error
             ? err

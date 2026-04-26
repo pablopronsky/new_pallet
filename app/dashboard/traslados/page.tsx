@@ -12,6 +12,7 @@ import { useDistribution } from "@/hooks/useDistribution";
 import { useProducts } from "@/hooks/useProducts";
 import { useTraslados } from "@/hooks/useTraslados";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage, logError } from "@/lib/errors";
 import { formatDateAR, formatNumberAR } from "@/lib/formatters";
 import type { Branch, TrasladoStock } from "@/types/domain";
 
@@ -187,8 +188,9 @@ function TrasladosContent() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
+      logError("registrar movimiento", err);
       setFormError(
-        err instanceof Error ? err : new Error("No se pudo crear el traslado"),
+        new Error(getErrorMessage(err, "No se pudo registrar el movimiento.")),
       );
     }
   }
@@ -283,13 +285,16 @@ function TrasladosContent() {
 
           {(formError || error) && (
             <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-              {(formError ?? error)!.message}
+              {getErrorMessage(
+                formError ?? error,
+                "No se pudo registrar el movimiento.",
+              )}
             </p>
           )}
 
           {success && (
             <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
-              Movimiento registrado.
+              Movimiento registrado correctamente.
             </p>
           )}
 

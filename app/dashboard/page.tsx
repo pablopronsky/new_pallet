@@ -43,6 +43,7 @@ import {
   formatPercent,
   formatUSD,
 } from "@/lib/formatters";
+import { getErrorMessage } from "@/lib/errors";
 import type { Branch, Product } from "@/types/domain";
 
 const periodOptions: { value: DashboardPeriod; label: string }[] = [
@@ -88,10 +89,10 @@ function ErrorMessage({ errors }: { errors: Error[] }) {
     <div className="mt-6 flex flex-col gap-2">
       {errors.map((error, index) => (
         <p
-          key={`${error.message}:${index}`}
+          key={`${getErrorMessage(error)}:${index}`}
           className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
         >
-          {error.message}
+          {getErrorMessage(error, "No se pudieron cargar los datos del dashboard.")}
         </p>
       ))}
     </div>

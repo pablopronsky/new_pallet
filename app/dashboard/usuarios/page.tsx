@@ -11,6 +11,7 @@ import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
 import { useAuth } from "@/hooks/useAuth";
 import { useManageUsers } from "@/hooks/useManageUsers";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage, logError } from "@/lib/errors";
 import type { Branch, Role, UserProfile } from "@/types/domain";
 
 interface EditFormState {
@@ -186,13 +187,12 @@ function UsuariosContent() {
           ? { sucursalAsignada: editing.sucursalAsignada }
           : {}),
       });
-      setSuccess("Perfil actualizado.");
+      setSuccess("Usuario actualizado correctamente.");
       setEditing(null);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setFormError(
-        err instanceof Error ? err.message : "No se pudo actualizar el perfil.",
-      );
+      logError("actualizar usuario", err);
+      setFormError(getErrorMessage(err, "No se pudo actualizar el usuario."));
     }
   }
 
@@ -217,7 +217,7 @@ function UsuariosContent() {
 
         {error && (
           <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-            {error.message}
+            {getErrorMessage(error, "No se pudieron cargar los usuarios.")}
           </p>
         )}
         {success && (

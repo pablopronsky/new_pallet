@@ -17,6 +17,7 @@ import {
   calculateTotalAvailableBoxes,
 } from "@/lib/calculations";
 import { db } from "@/lib/firebase";
+import { logError } from "@/lib/errors";
 import type { ProductDistribution } from "@/types/domain";
 
 export interface UseGenerateProviderSnapshotResult {
@@ -101,6 +102,7 @@ export function useGenerateProviderSnapshot(): UseGenerateProviderSnapshotResult
 
       await batch.commit();
     } catch (err) {
+      logError("useGenerateProviderSnapshot.generateProviderSnapshot", err);
       const e =
         err instanceof Error
           ? err

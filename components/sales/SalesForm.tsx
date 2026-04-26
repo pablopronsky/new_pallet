@@ -10,6 +10,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useSales, type CreateSaleInput } from "@/hooks/useSales";
 import { StockAvailabilityError } from "@/lib/calculations";
 import { BRANCHES, BRANCH_LABELS, DEFAULT_TIPO_CAMBIO_USD } from "@/lib/constants";
+import { getErrorMessage, logError } from "@/lib/errors";
 import type { Branch } from "@/types/domain";
 
 type Moneda = "USD" | "ARS";
@@ -136,10 +137,11 @@ export function SalesForm() {
       setForm(initialState(vendedorBranch ?? ""));
       setSuccess("Venta registrada correctamente");
     } catch (err) {
+      logError("registrar venta", err);
       if (err instanceof StockAvailabilityError) {
-        setError("Stock insuficiente");
+        setError(getErrorMessage(err, "No se pudo registrar la venta."));
       } else {
-        setError(err instanceof Error ? err.message : "Error al registrar la venta");
+        setError(getErrorMessage(err, "No se pudo registrar la venta."));
       }
     }
   };

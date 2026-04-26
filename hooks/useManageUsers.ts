@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { deleteField, updateDoc } from "firebase/firestore";
 import { userDoc } from "@/lib/firestore";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
+import { logError } from "@/lib/errors";
 import type { Branch, Role, UserProfile } from "@/types/domain";
 
 export interface UpdateUserProfilePatch {
@@ -43,6 +44,9 @@ export function useManageUsers(): UseManageUsersResult {
               ? patch.sucursalAsignada
               : deleteField(),
         });
+      } catch (err) {
+        logError("useManageUsers.updateUserProfile", err);
+        throw err;
       } finally {
         setSubmitting(false);
       }

@@ -13,6 +13,7 @@ import {
 import { auditsCollection, auditDoc } from "@/lib/firestore";
 import { useAuth } from "@/hooks/useAuth";
 import { BRANCHES } from "@/lib/constants";
+import { logError } from "@/lib/errors";
 import type { Audit, AuditItem, Branch } from "@/types/domain";
 
 export interface CreateAuditItemInput {
@@ -24,6 +25,7 @@ export interface CreateAuditItemInput {
 }
 
 export interface CreateAuditInput {
+  sucursal: Branch;
   items: CreateAuditItemInput[];
   notas?: string;
   fecha?: Date;
@@ -111,6 +113,9 @@ export function useAudits(): UseAuditsResult {
   const createAudit = useCallback(
     async (input: CreateAuditInput): Promise<CreateAuditResult> => {
       if (!user) throw new Error("Not authenticated");
+      if (!(BRANCHES as readonly string[]).includes(input.sucursal)) {
+        throw new Error(`sucursal "${input.sucursal}" is not a valid branch`);
+      }
       if (!input.items.length) {
         throw new Error("An audit must include at least one item");
       }
@@ -121,12 +126,16 @@ export function useAudits(): UseAuditsResult {
         const items: AuditItem[] = input.items.map((it, idx) =>
           validateItem(it, idx),
         );
+        if (items.some((item) => item.sucursal !== input.sucursal)) {
+          throw new Error("All audit items must match the selected branch");
+        }
 
         const generalNotas = input.notas?.trim();
         // Note: this only creates an audit record. It does not modify
         // distribucion.cajasPorSucursal and does not create sales.
         const payload: Omit<Audit, "id"> = {
           items,
+          sucursal: input.sucursal,
           fecha: Timestamp.fromDate(input.fecha ?? new Date()),
           createdBy: user.uid,
           cerrada: true,
@@ -137,6 +146,7 @@ export function useAudits(): UseAuditsResult {
         const ref = await addDoc(auditsCollection(), payload);
         return { auditId: ref.id };
       } catch (err) {
+        logError("useAudits.createAudit", err);
         const e =
           err instanceof Error ? err : new Error("Error al crear auditoría");
         setError(e);
@@ -166,6 +176,7 @@ export function useAudits(): UseAuditsResult {
           resolvedBy: user.uid,
         });
       } catch (err) {
+        logError("useAudits.markAuditResolved", err);
         const e =
           err instanceof Error
             ? err

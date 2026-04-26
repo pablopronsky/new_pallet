@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { getErrorMessage, logError } from "@/lib/errors";
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -27,7 +28,8 @@ export default function LoginPage() {
       await login(email, password);
       router.replace("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      logError("login", err);
+      setError(getErrorMessage(err, "No se pudo iniciar sesión."));
     } finally {
       setSubmitting(false);
     }

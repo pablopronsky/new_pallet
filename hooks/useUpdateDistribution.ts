@@ -5,6 +5,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { COLLECTIONS } from "@/lib/firestore";
 import { BRANCHES } from "@/lib/constants";
+import { logError } from "@/lib/errors";
 import type { BranchBoxes } from "@/types/domain";
 
 export interface UseUpdateDistributionResult {
@@ -54,6 +55,7 @@ export function useUpdateDistribution(): UseUpdateDistributionResult {
           { merge: true },
         );
       } catch (err) {
+        logError("useUpdateDistribution.updateDistribution", err);
         const e =
           err instanceof Error
             ? err

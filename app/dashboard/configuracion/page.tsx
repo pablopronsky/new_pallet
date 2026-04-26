@@ -14,6 +14,7 @@ import { useConfig } from "@/hooks/useConfig";
 import { useUpdateProduct } from "@/hooks/useUpdateProduct";
 import { useUpdateDistribution } from "@/hooks/useUpdateDistribution";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage, logError } from "@/lib/errors";
 import { formatUSD } from "@/lib/formatters";
 import type { Branch, BranchBoxes, Product } from "@/types/domain";
 
@@ -63,8 +64,8 @@ function ExchangeRateSection() {
       await updateTipoCambio(value);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch {
-      // error is surfaced via hook's `error` state
+    } catch (err) {
+      logError("guardar tipo de cambio", err);
     }
   }
 
@@ -80,12 +81,15 @@ function ExchangeRateSection() {
         <div className="flex flex-col gap-4">
           {success && (
             <FeedbackBanner
-              message="Tipo de cambio actualizado."
+              message="Configuración guardada correctamente."
               tone="success"
             />
           )}
           {error && (
-            <FeedbackBanner message={error.message} tone="error" />
+            <FeedbackBanner
+              message={getErrorMessage(error, "No se pudo guardar la configuración.")}
+              tone="error"
+            />
           )}
           <div className="flex items-end gap-3">
             <div className="w-48">
@@ -137,8 +141,8 @@ function ProductsSection({ products, loading, error }: ProductsSectionProps) {
       setEditingProduct(null);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch {
-      // error is surfaced via hook's `updateError` state
+    } catch (err) {
+      logError("guardar producto", err);
     }
   }
 
@@ -147,8 +151,8 @@ function ProductsSection({ products, loading, error }: ProductsSectionProps) {
       await updateProduct(product.id, { activo: !product.activo });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch {
-      // error is surfaced via hook's `updateError` state
+    } catch (err) {
+      logError("cambiar estado producto", err);
     }
   }
 
@@ -241,13 +245,19 @@ function ProductsSection({ products, loading, error }: ProductsSectionProps) {
 
         <div className="flex flex-col gap-3">
           {success && (
-            <FeedbackBanner message="Producto actualizado." tone="success" />
+            <FeedbackBanner message="Configuración guardada correctamente." tone="success" />
           )}
           {updateError && (
-            <FeedbackBanner message={updateError.message} tone="error" />
+            <FeedbackBanner
+              message={getErrorMessage(updateError, "No se pudo guardar la configuración.")}
+              tone="error"
+            />
           )}
           {error && (
-            <FeedbackBanner message={error.message} tone="error" />
+            <FeedbackBanner
+              message={getErrorMessage(error, "No se pudo cargar la configuración.")}
+              tone="error"
+            />
           )}
         </div>
 
@@ -256,7 +266,7 @@ function ProductsSection({ products, loading, error }: ProductsSectionProps) {
             columns={columns}
             rows={products}
             rowKey={(p) => p.id}
-            empty="Sin productos"
+            empty="Sin productos cargados."
           />
         </div>
       </Card>
@@ -349,9 +359,8 @@ function DistributionSection({
       setSuccessProductId(productId);
       setTimeout(() => setSuccessProductId(null), 3000);
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err : new Error("Error al guardar distribución"),
-      );
+      logError("guardar distribución", err);
+      setSaveError(new Error(getErrorMessage(err, "No se pudo guardar la configuración.")));
     } finally {
       setSavingProductId(null);
     }
@@ -375,7 +384,10 @@ function DistributionSection({
       {(error || saveError) && (
         <div className="mb-3">
           <FeedbackBanner
-            message={(error ?? saveError)!.message}
+            message={getErrorMessage(
+              error ?? saveError,
+              "No se pudo guardar la configuración.",
+            )}
             tone="error"
           />
         </div>

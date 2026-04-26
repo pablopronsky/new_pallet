@@ -38,7 +38,7 @@ NP Stock registra inventario en consignación de *All Covering* distribuido en t
 - **BajaStock** (`bajas/{id}`) - salida/corrección de stock no vinculada a venta con sucursal, cajas, tipo, motivo opcional, indicador de deuda, fecha, creador y notas opcionales.
 - **TrasladoStock** (`traslados/{id}`) - movimiento entre sucursales con producto, origen, destino, cajas, fecha, creador y notas opcionales.
 - **ProviderSnapshot** (`proveedorResumen/{productId}`) - agregado seguro para el proveedor All Covering con cajas vendidas, cajas restantes y deuda únicamente.
-- **Audit** - registro de auditoría con conteos y diferencias por producto y por sucursal.
+- **Audit** - registro de auditoría por una sucursal auditada, con conteos y diferencias por producto.
 - **AppConfig** - documento único de configuración con `tipoCambioUSD`.
 - **UserProfile** - documento identificado por el uid de Firebase Auth con `role`, `activo` y `sucursalAsignada` opcional.
 
@@ -68,7 +68,7 @@ Las colecciones principales tienen responsabilidades distintas:
 - **`ingresos/{id}`** - registros históricos de ingreso de stock. Crear un ingreso aumenta el stock vivo en `distribucion`. Guardan costo en USD por caja y costo total en USD. ARS no se usa en ingresos; ARS se usa solo para la conversión en ventas a clientes.
 - **`bajas/{id}`** - registros históricos de salidas/correcciones no vinculadas a ventas. Crear una baja disminuye el stock vivo en `distribucion` y genera historial de baja únicamente; no crea `ventas` ni afecta revenue de clientes. `devolucion_proveedor` se usa para mercadería no vendible devuelta a All Covering y no genera deuda. `baja_sucursal` se usa para producto dañado, abierto como muestra, perdido, roto o consumido por la sucursal y sí genera deuda con All Covering.
 - **`traslados/{id}`** - registros históricos de movimientos entre sucursales. Crear un traslado descuenta cajas del origen y suma la misma cantidad en el destino, por lo que el stock global no cambia.
-- **`auditorias/{id}`** - controles físicos de stock. Las auditorías no modifican stock.
+- **`auditorias/{id}`** - controles físicos de stock realizados por una sucursal a la vez. Las auditorías no modifican stock; las diferencias se corrigen luego con ingreso, baja o movimiento.
 
 ### Flujo
 
@@ -264,5 +264,6 @@ Implementado:
 - Los valores calculados como deuda, revenue, profit, stock restante y sell-through se derivan de los documentos actuales en tiempo de lectura.
 - El dashboard incluye estadísticas avanzadas solo para admin. Usa un filtro de período para métricas operativas/financieras y mantiene el stock vivo como estado actual. Los demás roles conservan dashboards simples según sus permisos.
 - El dashboard incluye estadísticas de negocio avanzadas solo para admin: rotación, días de stock, stock muerto, pérdidas operativas y alertas de inventario.
+- Los errores visibles para usuarios se traducen al español mediante `/lib/errors.ts`; los detalles técnicos se registran en consola para depuración.
 - El portal de proveedor oculta intencionalmente revenue y margen en la UI y lee la colección segura `proveedorResumen`.
 - La ruta `/dashboard` está protegida del lado cliente. Agregar protección del lado servidor antes de tratarla como un límite de seguridad fuerte.

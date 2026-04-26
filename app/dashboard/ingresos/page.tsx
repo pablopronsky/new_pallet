@@ -11,6 +11,7 @@ import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
 import { useIngresos } from "@/hooks/useIngresos";
 import { useProducts } from "@/hooks/useProducts";
 import { BRANCHES, BRANCH_LABELS } from "@/lib/constants";
+import { getErrorMessage, logError } from "@/lib/errors";
 import { formatDateAR, formatNumberAR, formatUSD } from "@/lib/formatters";
 import type { Branch, IngresoStock } from "@/types/domain";
 
@@ -222,9 +223,8 @@ function IngresosContent() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setFormError(
-        err instanceof Error ? err : new Error("No se pudo crear el ingreso"),
-      );
+      logError("registrar ingreso", err);
+      setFormError(new Error(getErrorMessage(err, "No se pudo registrar el ingreso.")));
     }
   }
 
@@ -318,13 +318,13 @@ function IngresosContent() {
 
           {(formError || error) && (
             <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-              {(formError ?? error)!.message}
+              {getErrorMessage(formError ?? error, "No se pudo registrar el ingreso.")}
             </p>
           )}
 
           {success && (
             <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
-              Ingreso registrado.
+              Ingreso registrado correctamente.
             </p>
           )}
 
