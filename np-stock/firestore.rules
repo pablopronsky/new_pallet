@@ -104,6 +104,45 @@ service cloud.firestore {
           || request.resource.data.notas is string);
     }
 
+    function isValidBajaCreate() {
+      return request.resource.data.keys().hasOnly([
+          'productId',
+          'sucursal',
+          'cajas',
+          'motivo',
+          'fecha',
+          'createdBy',
+          'notas',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'productId',
+          'sucursal',
+          'cajas',
+          'motivo',
+          'fecha',
+          'createdBy',
+          'createdAt'
+        ])
+        && request.resource.data.productId is string
+        && request.resource.data.productId != ''
+        && request.resource.data.sucursal in ['gonnet', 'laplata', 'quilmes']
+        && request.resource.data.cajas is int
+        && request.resource.data.cajas > 0
+        && request.resource.data.motivo in [
+          'rotura',
+          'perdida',
+          'ajuste',
+          'devolucion_proveedor',
+          'otro'
+        ]
+        && request.resource.data.fecha is timestamp
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && (!('notas' in request.resource.data)
+          || request.resource.data.notas is string);
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow write: if isAdmin();
@@ -147,6 +186,13 @@ service cloud.firestore {
       allow create: if isAdmin()
         || (isControlador() && isValidIngresoCreate());
 
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /bajas/{bajaId} {
+      allow read: if isAdmin() || isControlador();
+      allow create: if (isAdmin() || isControlador()) && isValidBajaCreate();
       allow update: if false;
       allow delete: if isAdmin();
     }

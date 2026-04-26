@@ -101,3 +101,22 @@ export interface IngresoStock {
   notas?: string;
   createdAt?: Timestamp;
 }
+
+export type BajaMotivo =
+  | "rotura"
+  | "perdida"
+  | "ajuste"
+  | "devolucion_proveedor"
+  | "otro";
+
+export interface BajaStock {
+  id: string;
+  productId: string;
+  sucursal: Branch;
+  cajas: number;
+  motivo: BajaMotivo;
+  fecha: Timestamp;
+  createdBy: string;
+  notas?: string;
+  createdAt?: Timestamp;
+}

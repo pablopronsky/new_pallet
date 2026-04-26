@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase";
 import type {
   AppConfig,
   Audit,
+  BajaStock,
   IngresoStock,
   Product,
   ProductDistribution,
@@ -28,6 +29,7 @@ export const COLLECTIONS = {
   config: "config",
   proveedorResumen: "proveedorResumen",
   ingresos: "ingresos",
+  bajas: "bajas",
 } as const;
 
 function createConverter<T extends { id: string }>(): FirestoreDataConverter<T> {
@@ -61,6 +63,7 @@ const saleConverter = createConverter<Sale>();
 const auditConverter = createConverter<Audit>();
 const configConverter = createConverter<AppConfig>();
 const ingresoConverter = createConverter<IngresoStock>();
+const bajaConverter = createConverter<BajaStock>();
 const providerSnapshotConverter: FirestoreDataConverter<ProviderSnapshot> = {
   toFirestore(model: ProviderSnapshot) {
     return model;
@@ -92,6 +95,9 @@ export const configCollection = (): CollectionReference<AppConfig> =>
 export const ingresosCollection = (): CollectionReference<IngresoStock> =>
   collection(db, COLLECTIONS.ingresos).withConverter(ingresoConverter);
 
+export const bajasCollection = (): CollectionReference<BajaStock> =>
+  collection(db, COLLECTIONS.bajas).withConverter(bajaConverter);
+
 export const providerSnapshotCollection =
   (): CollectionReference<ProviderSnapshot> =>
     collection(db, COLLECTIONS.proveedorResumen).withConverter(
@@ -119,6 +125,9 @@ export const configDoc = (): DocumentReference<AppConfig> =>
 
 export const ingresoDoc = (id: string): DocumentReference<IngresoStock> =>
   doc(ingresosCollection(), id);
+
+export const bajaDoc = (id: string): DocumentReference<BajaStock> =>
+  doc(bajasCollection(), id);
 
 export const providerSnapshotDoc = (
   productId: string,

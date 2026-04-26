@@ -34,6 +34,7 @@ np-stock tracks consignment inventory from *All Covering* distributed to three N
 - **ProductDistribution** (`distribucion/{productId}`) - current boxes allocated per branch in `cajasPorSucursal`.
 - **Sale** - individual sale: product, branch, boxes, `montoUSD`, `tipoCambioUSD`, `montoARS`, date, seller.
 - **IngresoStock** (`ingresos/{id}`) - incoming merchandise entry with branch, boxes, `costoUSDPorCaja`, and `costoTotalUSD`.
+- **BajaStock** (`bajas/{id}`) - non-sale stock exit/correction with branch, boxes, reason, date, creator, and optional notes.
 - **ProviderSnapshot** (`proveedorResumen/{productId}`) - supplier-safe aggregate for All Covering with sold boxes, remaining boxes, and debt only.
 - **Audit** - audit record with per-product/per-branch counts and differences.
 - **AppConfig** - singleton config doc with `tipoCambioUSD`.
@@ -63,6 +64,7 @@ The three core collections have distinct responsibilities:
 - **`distribucion/{productId}.cajasPorSucursal`** - live remaining stock per branch.
 - **`ventas/{id}`** - historical sale records used for sold totals, debt, and revenue calculations.
 - **`ingresos/{id}`** - historical incoming stock records. These store cost in USD per box and total USD cost. ARS is not used for ingresos; ARS is only used for customer sales conversion.
+- **`bajas/{id}`** - historical non-sale exits/corrections. Creating a baja decreases live stock in `distribucion` and creates baja history only; it does not create `ventas` or affect customer revenue.
 
 ### Flow
 
@@ -181,6 +183,7 @@ Rules live in [firestore.rules](/C:/Users/pablo/OneDrive/Documentos/pallet-codex
 - `distribucion/{productId}` - read: `admin`, `controlador`, `vendedor`. Write: admin or controlador. `vendedor` can only update their assigned branch stock, only by decreasing it during sale creation.
 - `ventas/{saleId}` - read: admin/controlador, plus `vendedor` only for their assigned branch. Create: admin/controlador, plus `vendedor` only for their assigned branch. Update/delete: admin only.
 - `ingresos/{ingresoId}` - read/create: admin or controlador. Delete: admin only. Update: denied.
+- `bajas/{bajaId}` - read/create: admin or controlador. Delete: admin only. Update: denied.
 - `proveedorResumen/{productId}` - read: admin or allcovering. Write: admin only.
 - `auditorias/{auditId}` - read/create: admin or controlador. Update/delete: admin only.
 - `config/{docId}` - read: admin, controlador, vendedor. Write: admin only.
@@ -194,6 +197,8 @@ Implemented:
 - role profiles
 - sales
 - live stock
+- ingresos
+- bajas
 - history
 - configuration
 - audits
