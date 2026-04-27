@@ -21,14 +21,14 @@ const itemsByRole: Record<Role, NavItem[]> = {
     { href: "/dashboard/bajas", label: "Bajas" },
     { href: "/dashboard/traslados", label: "Movimientos" },
     { href: "/dashboard/historial", label: "Historial" },
-    { href: "/dashboard/auditorias", label: "Auditorias" },
+    { href: "/dashboard/auditorias", label: "Auditorías" },
     { href: "/dashboard/configuracion", label: "Config." },
     { href: "/dashboard/usuarios", label: "Usuarios" },
     { href: "/dashboard/exportar", label: "Exportar" },
   ],
   controlador: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/dashboard/auditorias", label: "Auditorias" },
+    { href: "/dashboard/auditorias", label: "Auditorías" },
     { href: "/dashboard/traslados", label: "Movimientos" },
   ],
   vendedor: [
@@ -55,8 +55,8 @@ export function BottomNav() {
   const items = role ? itemsByRole[role] : fallbackItems;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 backdrop-blur md:hidden">
-      <ul className="flex min-h-16 gap-1 overflow-x-auto px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border/80 bg-[#060A0D]/95 shadow-premium backdrop-blur-xl md:hidden">
+      <ul className="flex min-h-16 gap-1.5 overflow-x-auto px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           return (
@@ -64,10 +64,10 @@ export function BottomNav() {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex min-h-12 min-w-[4.75rem] items-center justify-center rounded-xl px-3 text-center text-xs font-medium transition-colors",
+                  "flex min-h-12 min-w-[4.75rem] items-center justify-center rounded-2xl px-3 text-center text-xs font-medium transition-colors",
                   active
-                    ? "bg-primary/15 text-primary-light"
-                    : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+                    ? "bg-primary/15 text-primary-light shadow-glow"
+                    : "text-text-secondary hover:bg-primary/10 hover:text-text-primary",
                 )}
               >
                 {item.label}

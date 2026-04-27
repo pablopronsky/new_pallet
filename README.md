@@ -272,6 +272,7 @@ Implementado:
 - El dashboard incluye estadísticas de negocio avanzadas solo para admin: rotación, días de stock, stock muerto, pérdidas operativas y alertas de inventario.
 - Los errores visibles para usuarios se traducen al español mediante `/lib/errors.ts`; los detalles técnicos se registran en consola para depuración.
 - La app está preparada para uso desde navegadores móviles. El filtro global de sucursal solo es editable por admin en pantallas donde afecta lecturas; vendedor ve solo su `sucursalAsignada`, controlador usa selectores propios de auditorías/movimientos y All Covering no ve selector de sucursal.
+- El rediseño visual toma inspiración de herramientas internas premium en modo oscuro. No cambia lógica de negocio, stock, permisos ni modelo de datos.
 - El portal de proveedor oculta intencionalmente revenue y margen en la UI y lee la colección segura `proveedorResumen`.
 - Las liquidaciones a All Covering son pagos globales en USD. Reducen el saldo pendiente, no se asignan todavía a productos/cajas específicas y no modifican stock, ventas ni bajas.
 - La ruta `/dashboard` está protegida del lado cliente. Agregar protección del lado servidor antes de tratarla como un límite de seguridad fuerte.

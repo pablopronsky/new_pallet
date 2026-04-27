@@ -154,12 +154,17 @@ export function SalesForm({ defaultBranch }: { defaultBranch?: Branch }) {
   };
 
   return (
-    <Card>
+    <Card className="mx-auto w-full max-w-4xl border-primary-light/20 shadow-glow">
       <CardHeader>
-        <CardTitle>Registrar venta</CardTitle>
+        <div>
+          <CardTitle>Registrar venta</CardTitle>
+          <p className="mt-1 text-sm text-text-secondary">
+            Carga operativa con validación de stock disponible.
+          </p>
+        </div>
       </CardHeader>
 
-      <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <form onSubmit={onSubmit} className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Select
           label="Producto"
           name="productId"
@@ -211,7 +216,7 @@ export function SalesForm({ defaultBranch }: { defaultBranch?: Branch }) {
         />
 
         <Input
-          label={`Monto (${form.moneda})`}
+          label={`Monto total (${form.moneda})`}
           name="monto"
           type="number"
           min={0}
@@ -265,7 +270,7 @@ export function SalesForm({ defaultBranch }: { defaultBranch?: Branch }) {
               <span>{success}</span>
             </div>
           )}
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-1">
             <Button
               type="submit"
               disabled={!canSubmit}

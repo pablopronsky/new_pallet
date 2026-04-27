@@ -13,14 +13,14 @@ const toneClasses: Record<BadgeTone, string> = {
   warning: "bg-warning/15 text-warning border-warning/30",
   error: "bg-danger/15 text-danger border-danger/30",
   primary: "bg-primary/15 text-primary-light border-primary/30",
-  neutral: "bg-surface-2 text-text-secondary border-border",
+  neutral: "bg-surface-2/80 text-text-secondary border-border/90",
 };
 
 export function Badge({ tone = "neutral", className, children, ...rest }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex min-h-7 items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium",
         toneClasses[tone],
         className,
       )}

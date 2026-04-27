@@ -12,11 +12,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-white hover:bg-primary-hover disabled:bg-primary/50 disabled:text-white/70",
+    "bg-primary text-white shadow-glow hover:bg-primary-hover disabled:bg-primary/45 disabled:text-white/70",
   secondary:
-    "bg-surface-2 text-text-primary border border-border hover:bg-border disabled:opacity-60",
+    "border border-border bg-surface-2/80 text-text-primary hover:border-primary/45 hover:bg-primary/10 disabled:opacity-60",
   ghost:
-    "bg-transparent text-text-secondary hover:bg-surface-2 hover:text-text-primary disabled:opacity-60",
+    "bg-transparent text-text-secondary hover:bg-primary/10 hover:text-text-primary disabled:opacity-60",
   danger:
     "bg-danger text-white hover:bg-danger/90 disabled:opacity-60",
 };
@@ -36,7 +36,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors",
-        "focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-background",
+        "focus:outline-none focus:ring-2 focus:ring-primary-light/45 focus:ring-offset-2 focus:ring-offset-background",
         "disabled:cursor-not-allowed",
         variantClasses[variant],
         sizeClasses[size],

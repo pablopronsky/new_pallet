@@ -4,13 +4,18 @@ import { AuthProvider } from "@/components/AuthProvider";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "np-stock",
-  description: "Stock management",
+  title: "Inventario Nuevo Parket",
+  description: "Herramienta interna de stock de Nuevo Parket",
+  icons: {
+    icon: "/branding/nuevo-parket-logo.png",
+    shortcut: "/branding/nuevo-parket-logo.png",
+    apple: "/branding/nuevo-parket-logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body>
         <AuthProvider>{children}</AuthProvider>
       </body>

@@ -10,13 +10,53 @@ body {
 body {
   @apply bg-background text-text-primary antialiased;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  background:
+    radial-gradient(circle at 15% 10%, rgba(0, 101, 46, 0.16), transparent 28rem),
+    radial-gradient(circle at 88% 18%, rgba(0, 122, 56, 0.1), transparent 24rem),
+    linear-gradient(135deg, #05080a 0%, #070b0d 44%, #08120f 100%);
+}
+
+* {
+  scrollbar-color: rgba(0, 101, 46, 0.45) rgba(11, 17, 21, 0.7);
+}
+
+::selection {
+  background: rgba(0, 101, 46, 0.38);
+  color: #f4f7f5;
+}
+
+.login-architecture {
+  background:
+    linear-gradient(115deg, rgba(5, 8, 10, 0.92), rgba(5, 8, 10, 0.58)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(244, 247, 245, 0.045) 0,
+      rgba(244, 247, 245, 0.045) 1px,
+      transparent 1px,
+      transparent 92px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 101, 46, 0.06) 0,
+      rgba(0, 101, 46, 0.06) 1px,
+      transparent 1px,
+      transparent 76px
+    ),
+    radial-gradient(circle at 72% 24%, rgba(0, 101, 46, 0.2), transparent 22rem),
+    linear-gradient(135deg, #05080a, #0b1515 56%, #06100d);
+}
+
+.glass-panel {
+  background: linear-gradient(145deg, rgba(31, 36, 43, 0.86), rgba(11, 17, 21, 0.82));
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
 }
 
 /* Autofill dark fix */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #ffffff;
-  -webkit-box-shadow: 0 0 0px 1000px #1c1c1c inset;
+  -webkit-text-fill-color: #f4f7f5;
+  -webkit-box-shadow: 0 0 0px 1000px #0b1115 inset;
   transition: background-color 5000s ease-in-out 0s;
 }

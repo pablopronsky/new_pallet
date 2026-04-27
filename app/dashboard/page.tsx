@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { SimpleTable, type SimpleColumn } from "@/components/ui/Table";
@@ -69,17 +68,20 @@ function periodFilter(
   onChange: (period: DashboardPeriod) => void,
 ) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="inline-flex max-w-full flex-wrap gap-1 rounded-2xl border border-border/80 bg-surface/80 p-1 shadow-premium backdrop-blur">
       {periodOptions.map((option) => (
-        <Button
+        <button
           key={option.value}
           type="button"
-          size="sm"
-          variant={period === option.value ? "primary" : "secondary"}
           onClick={() => onChange(option.value)}
+          className={
+            period === option.value
+              ? "min-h-10 rounded-xl bg-primary px-3 py-2 text-xs font-medium text-white shadow-glow"
+              : "min-h-10 rounded-xl px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary"
+          }
         >
           {option.label}
-        </Button>
+        </button>
       ))}
     </div>
   );
@@ -320,43 +322,53 @@ function StockAlertsCard({ rows }: { rows: StockAlert[] }) {
         <CardTitle>Alertas de inventario</CardTitle>
         <Badge tone={rows.length > 0 ? "warning" : "success"}>{rows.length}</Badge>
       </CardHeader>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="space-y-3">
         {sections.map((section) => {
           const sectionRows = rows
             .filter((row) => row.type === section.type)
-            .slice(0, 8);
+            .slice(0, 5);
 
           return (
-            <div key={section.type} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-text-primary">
-                  {section.title}
-                </h3>
+            <section
+              key={section.type}
+              className="rounded-2xl border border-border/70 bg-surface-2/45 p-3"
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">
+                    {section.title}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    {sectionRows.length === 0
+                      ? section.empty
+                      : `${formatNumberAR(sectionRows.length)} alerta(s)`}
+                  </p>
+                </div>
                 <Badge tone={section.tone}>{sectionRows.length}</Badge>
               </div>
               {sectionRows.length === 0 ? (
-                <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-secondary">
-                  {section.empty}
-                </p>
+                <div className="h-px bg-border/60" />
               ) : (
-                sectionRows.map((row) => (
-                  <div
-                    key={`${row.type}:${row.productId}`}
-                    className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2"
-                  >
-                    <span className="text-sm font-medium text-text-primary">
-                      {row.producto}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-text-secondary">
-                        {formatNumberAR(row.totalStock)} cajas
+                <div className="space-y-2">
+                  {sectionRows.map((row) => (
+                    <div
+                      key={`${row.type}:${row.productId}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/35 px-3 py-2"
+                    >
+                      <span className="min-w-0 truncate text-sm font-medium text-text-primary">
+                        {row.producto}
                       </span>
-                      <Badge tone={section.tone}>{section.badge}</Badge>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs tabular-nums text-text-secondary">
+                          {formatNumberAR(row.totalStock)} cajas
+                        </span>
+                        <Badge tone={section.tone}>{section.badge}</Badge>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
-            </div>
+            </section>
           );
         })}
       </div>

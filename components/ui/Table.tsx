@@ -13,7 +13,7 @@ export function Table({
   ...rest
 }: TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full max-w-full overflow-x-auto rounded-xl border border-border shadow-[inset_-16px_0_16px_-18px_rgba(255,255,255,0.35)]">
+    <div className="w-full max-w-full overflow-x-auto rounded-2xl border border-border/80 bg-surface-2/35 shadow-[inset_-18px_0_18px_-20px_rgba(0,101,46,0.65)]">
       <table
         className={cn(
           "min-w-max w-full text-left text-sm text-text-primary",
@@ -35,7 +35,7 @@ export function THead({
   return (
     <thead
       className={cn(
-        "bg-surface-2 text-xs uppercase tracking-wider text-text-secondary",
+        "bg-surface-2/90 text-xs uppercase tracking-wider text-text-secondary",
         className,
       )}
       {...rest}
@@ -51,7 +51,7 @@ export function TBody({
   ...rest
 }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={cn("divide-y divide-border", className)} {...rest}>
+    <tbody className={cn("divide-y divide-border/70", className)} {...rest}>
       {children}
     </tbody>
   );
@@ -63,7 +63,7 @@ export function TR({
   ...rest
 }: HTMLAttributes<HTMLTableRowElement>) {
   return (
-    <tr className={cn("hover:bg-surface-2/60 transition-colors", className)} {...rest}>
+    <tr className={cn("transition-colors hover:bg-primary/5", className)} {...rest}>
       {children}
     </tr>
   );
@@ -76,7 +76,7 @@ export function TH({
 }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={cn("whitespace-nowrap px-3 py-3 font-medium sm:px-4", className)}
+      className={cn("whitespace-nowrap px-3 py-3.5 font-medium sm:px-4", className)}
       {...rest}
     >
       {children}
@@ -90,7 +90,7 @@ export function TD({
   ...rest
 }: TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn("whitespace-nowrap px-3 py-3 sm:px-4", className)} {...rest}>
+    <td className={cn("whitespace-nowrap px-3 py-3.5 sm:px-4", className)} {...rest}>
       {children}
     </td>
   );

@@ -54,7 +54,7 @@ function FeedbackBanner({
     <div
       className={`rounded-xl border px-4 py-3 text-sm ${
         tone === "success"
-          ? "border-green-500/30 bg-green-500/10 text-green-400"
+          ? "border-primary/35 bg-primary/12 text-primary-light"
           : "border-red-500/30 bg-red-500/10 text-red-400"
       }`}
     >
