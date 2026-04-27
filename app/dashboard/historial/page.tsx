@@ -275,6 +275,7 @@ function auditToRow(audit: Audit): HistorialRow {
     tipo: "auditoria",
     fecha: audit.fecha,
     detalle: `Auditoría: ${items.length} ítem(s), ${differences} diferencia(s)`,
+    ...(audit.sucursal ? { sucursal: audit.sucursal } : {}),
     createdBy: audit.createdBy,
     notas: audit.notas,
     auditItems: items,
