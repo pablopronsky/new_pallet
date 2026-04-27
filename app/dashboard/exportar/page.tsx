@@ -10,6 +10,7 @@ import { useAudits } from "@/hooks/useAudits";
 import { useBajas } from "@/hooks/useBajas";
 import { useDistribution } from "@/hooks/useDistribution";
 import { useIngresos } from "@/hooks/useIngresos";
+import { useLiquidacionesProveedor } from "@/hooks/useLiquidacionesProveedor";
 import { useProducts } from "@/hooks/useProducts";
 import { useProviderSnapshot } from "@/hooks/useProviderSnapshot";
 import { useSalesHistory } from "@/hooks/useSalesHistory";
@@ -37,6 +38,7 @@ import type {
   AuditItem,
   BajaStock,
   IngresoStock,
+  LiquidacionProveedor,
   Product,
   ProductDistribution,
   ProviderSnapshot,
@@ -157,6 +159,11 @@ function ExportarContent() {
   const { ingresos, loading: ingresosLoading, error: ingresosError } =
     useIngresos();
   const { bajas, loading: bajasLoading, error: bajasError } = useBajas();
+  const {
+    liquidaciones,
+    loading: liquidacionesLoading,
+    error: liquidacionesError,
+  } = useLiquidacionesProveedor();
   const { traslados, loading: trasladosLoading, error: trasladosError } =
     useTraslados();
   const { audits, loading: auditsLoading, error: auditsError } = useAudits();
@@ -182,6 +189,13 @@ function ExportarContent() {
     () => bajas.filter((baja) => inDateRange(baja.fecha, filters)),
     [bajas, filters],
   );
+  const filteredLiquidaciones = useMemo(
+    () =>
+      liquidaciones.filter((liquidacion) =>
+        inDateRange(liquidacion.fecha, filters),
+      ),
+    [filters, liquidaciones],
+  );
   const filteredTraslados = useMemo(
     () => traslados.filter((traslado) => inDateRange(traslado.fecha, filters)),
     [filters, traslados],
@@ -204,6 +218,7 @@ function ExportarContent() {
     salesError,
     ingresosError,
     bajasError,
+    liquidacionesError,
     trasladosError,
     auditsError,
     snapshotsError,
@@ -216,6 +231,7 @@ function ExportarContent() {
     salesLoading ||
     ingresosLoading ||
     bajasLoading ||
+    liquidacionesLoading ||
     trasladosLoading ||
     auditsLoading ||
     snapshotsLoading ||
@@ -302,6 +318,14 @@ function ExportarContent() {
       value: (row) => BRANCH_LABELS[row.sucursalDestino],
     },
     { header: "cajas", value: (row) => finiteNumber(row.cajas) },
+    { header: "createdBy", value: (row) => userName(row.createdBy, usersByUid) },
+    { header: "notas", value: (row) => row.notas },
+  ];
+
+  const liquidacionColumns: CsvColumn<LiquidacionProveedor>[] = [
+    { header: "fecha", value: (row) => formatDate(row.fecha) },
+    { header: "proveedor", value: (row) => row.proveedor },
+    { header: "montoUSD", value: (row) => finiteNumber(row.montoUSD) },
     { header: "createdBy", value: (row) => userName(row.createdBy, usersByUid) },
     { header: "notas", value: (row) => row.notas },
   ];
@@ -451,6 +475,19 @@ function ExportarContent() {
           disabled={loading}
           onExport={() =>
             exportCsv("movimientos.csv", filteredTraslados, trasladoColumns)
+          }
+        />
+        <ExportCard
+          title="Exportar liquidaciones"
+          description="Pagos/liquidaciones registrados para All Covering."
+          count={filteredLiquidaciones.length}
+          disabled={loading}
+          onExport={() =>
+            exportCsv(
+              "liquidaciones_proveedor.csv",
+              filteredLiquidaciones,
+              liquidacionColumns,
+            )
           }
         />
         <ExportCard

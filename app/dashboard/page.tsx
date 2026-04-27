@@ -13,6 +13,7 @@ import { useBajas } from "@/hooks/useBajas";
 import { useBranchFilter } from "@/contexts/BranchFilterContext";
 import { useDistribution } from "@/hooks/useDistribution";
 import { useIngresos } from "@/hooks/useIngresos";
+import { useLiquidacionesProveedor } from "@/hooks/useLiquidacionesProveedor";
 import { useProducts } from "@/hooks/useProducts";
 import { useSalesHistory } from "@/hooks/useSalesHistory";
 import { useTraslados } from "@/hooks/useTraslados";
@@ -45,6 +46,7 @@ import {
   formatUSD,
 } from "@/lib/formatters";
 import { getErrorMessage } from "@/lib/errors";
+import { calculateProviderDebtSummary } from "@/lib/provider";
 import type { Branch, Product } from "@/types/domain";
 
 const periodOptions: { value: DashboardPeriod; label: string }[] = [
@@ -723,12 +725,27 @@ function AdminDashboard() {
   const { ingresos, loading: ingresosLoading, error: ingresosError } =
     useIngresos();
   const { bajas, loading: bajasLoading, error: bajasError } = useBajas();
+  const {
+    liquidaciones,
+    loading: liquidacionesLoading,
+    error: liquidacionesError,
+  } = useLiquidacionesProveedor();
   const { traslados, loading: trasladosLoading, error: trasladosError } =
     useTraslados();
   const { audits, loading: auditsLoading, error: auditsError } = useAudits();
   const { byUid: usersByUid, error: usersError } = useUserProfiles();
 
   const productsById = useMemo(() => buildProductMap(products), [products]);
+  const providerSummary = useMemo(
+    () =>
+      calculateProviderDebtSummary({
+        products,
+        ventas: sales,
+        bajas,
+        liquidaciones,
+      }),
+    [bajas, liquidaciones, products, sales],
+  );
   const metrics = useMemo(
     () =>
       calculateDashboardMetrics({
@@ -828,6 +845,7 @@ function AdminDashboard() {
     salesLoading ||
     ingresosLoading ||
     bajasLoading ||
+    liquidacionesLoading ||
     trasladosLoading ||
     auditsLoading;
   const errors = [
@@ -836,6 +854,7 @@ function AdminDashboard() {
     salesError,
     ingresosError,
     bajasError,
+    liquidacionesError,
     trasladosError,
     auditsError,
     usersError,
@@ -863,10 +882,25 @@ function AdminDashboard() {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Deuda All Covering"
-          value={loading ? "..." : formatUSD(metrics.deudaAllCovering)}
-          hint="Ventas y bajas de sucursal del periodo"
+          label="Saldo pendiente All Covering"
+          value={loading ? "..." : formatUSD(providerSummary.saldoPendienteUSD)}
+          hint="Deuda generada menos liquidaciones registradas."
           tone="accent"
+        />
+        <StatCard
+          label="Deuda generada USD"
+          value={loading ? "..." : formatUSD(providerSummary.deudaGeneradaUSD)}
+          hint="Ventas y bajas de sucursal"
+        />
+        <StatCard
+          label="Liquidado USD"
+          value={loading ? "..." : formatUSD(providerSummary.liquidadoUSD)}
+          hint={
+            providerSummary.porcentajeLiquidado === null
+              ? "Sin deuda generada"
+              : `Cobertura ${formatPercent(providerSummary.porcentajeLiquidado)}`
+          }
+          tone="primary"
         />
         <StatCard
           label="Utilidad bruta"

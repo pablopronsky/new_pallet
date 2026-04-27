@@ -38,6 +38,7 @@ NP Stock registra inventario en consignación de *All Covering* distribuido en t
 - **BajaStock** (`bajas/{id}`) - salida/corrección de stock no vinculada a venta con sucursal, cajas, tipo, motivo opcional, indicador de deuda, fecha, creador y notas opcionales.
 - **TrasladoStock** (`traslados/{id}`) - movimiento entre sucursales con producto, origen, destino, cajas, fecha, creador y notas opcionales.
 - **ProviderSnapshot** (`proveedorResumen/{productId}`) - agregado seguro para el proveedor All Covering con cajas vendidas, cajas restantes y deuda únicamente.
+- **LiquidacionProveedor** (`liquidacionesProveedor/{id}`) - pago/liquidación global a All Covering con proveedor, fecha, monto USD, creador y notas opcionales.
 - **Audit** - registro de auditoría por una sucursal auditada, con conteos y diferencias por producto.
 - **AppConfig** - documento único de configuración con `tipoCambioUSD`.
 - **UserProfile** - documento identificado por el uid de Firebase Auth con `role`, `activo` y `sucursalAsignada` opcional.
@@ -69,6 +70,7 @@ Las colecciones principales tienen responsabilidades distintas:
 - **`bajas/{id}`** - registros históricos de salidas/correcciones no vinculadas a ventas. Crear una baja disminuye el stock vivo en `distribucion` y genera historial de baja únicamente; no crea `ventas` ni afecta revenue de clientes. `devolucion_proveedor` se usa para mercadería no vendible devuelta a All Covering y no genera deuda. `baja_sucursal` se usa para producto dañado, abierto como muestra, perdido, roto o consumido por la sucursal y sí genera deuda con All Covering.
 - **`traslados/{id}`** - registros históricos de movimientos entre sucursales. Crear un traslado descuenta cajas del origen y suma la misma cantidad en el destino, por lo que el stock global no cambia.
 - **`auditorias/{id}`** - controles físicos de stock realizados por una sucursal a la vez. Las auditorías no modifican stock; las diferencias se corrigen luego con ingreso, baja o movimiento.
+- **`liquidacionesProveedor/{id}`** - pagos/liquidaciones globales a All Covering. Reducen el saldo pendiente con el proveedor, pero no modifican stock, ventas ni bajas.
 
 ### Flujo
 
@@ -182,6 +184,7 @@ Exportar es solo admin y descarga archivos CSV. Exportaciones disponibles:
 - auditorías detalle
 - stock actual
 - proveedor / All Covering
+- liquidaciones proveedor
 
 ## Roles y control de acceso
 
@@ -218,6 +221,7 @@ El hook actual de ventas también fuerza que una venta de `vendedor` use la sucu
 - Rol de portal de proveedor en solo lectura.
 - Lee únicamente `proveedorResumen` más su propio perfil `users/{uid}`.
 - Ve deuda, cajas vendidas y cajas restantes desde documentos agregados seguros para proveedor.
+- Ve resumen e historial seguro de liquidaciones registradas.
 - No ve revenue, margen ni precios de venta en la UI.
 
 El portal de proveedor no lee `ventas`, `productos`, `distribucion`, `config`, `auditorias` ni otros usuarios en crudo.
@@ -234,6 +238,7 @@ Las reglas viven en [firestore.rules](./firestore.rules).
 - `bajas/{bajaId}` - lectura/creación/delete: solo admin. Update: denegado.
 - `traslados/{trasladoId}` - lectura/creación: admin o controlador. Delete: solo admin. Update: denegado.
 - `proveedorResumen/{productId}` - lectura: admin o allcovering. Escritura: solo admin.
+- `liquidacionesProveedor/{liquidacionId}` - lectura: admin o allcovering. Creación/delete: solo admin. Update: denegado.
 - `auditorias/{auditId}` - lectura/creación: admin o controlador. Update/delete: solo admin.
 - `config/{docId}` - lectura: admin o vendedor. Escritura: solo admin.
 - Cualquier otra ruta - denegada.
@@ -257,6 +262,7 @@ Implementado:
 - audits
 - provider portal
 - supplier-safe provider snapshot
+- supplier payment/liquidation tracking
 - setup users script
 
 ## Notas
@@ -267,4 +273,5 @@ Implementado:
 - Los errores visibles para usuarios se traducen al español mediante `/lib/errors.ts`; los detalles técnicos se registran en consola para depuración.
 - La app está preparada para uso desde navegadores móviles. El filtro global de sucursal solo es editable por admin en pantallas donde afecta lecturas; vendedor ve solo su `sucursalAsignada`, controlador usa selectores propios de auditorías/movimientos y All Covering no ve selector de sucursal.
 - El portal de proveedor oculta intencionalmente revenue y margen en la UI y lee la colección segura `proveedorResumen`.
+- Las liquidaciones a All Covering son pagos globales en USD. Reducen el saldo pendiente, no se asignan todavía a productos/cajas específicas y no modifican stock, ventas ni bajas.
 - La ruta `/dashboard` está protegida del lado cliente. Agregar protección del lado servidor antes de tratarla como un límite de seguridad fuerte.

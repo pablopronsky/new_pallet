@@ -238,6 +238,32 @@ service cloud.firestore {
           || request.resource.data.notas is string);
     }
 
+    function isValidLiquidacionProveedorCreate() {
+      return request.resource.data.keys().hasOnly([
+          'proveedor',
+          'fecha',
+          'montoUSD',
+          'createdBy',
+          'notas',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'proveedor',
+          'fecha',
+          'montoUSD',
+          'createdBy',
+          'createdAt'
+        ])
+        && request.resource.data.proveedor == 'allcovering'
+        && request.resource.data.montoUSD is number
+        && request.resource.data.montoUSD > 0
+        && request.resource.data.fecha is timestamp
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && (!('notas' in request.resource.data)
+          || request.resource.data.notas is string);
+    }
+
     function isValidAuditCreate() {
       return request.resource.data.keys().hasOnly([
           'items',
@@ -332,6 +358,13 @@ service cloud.firestore {
     match /proveedorResumen/{productId} {
       allow read: if isAdmin() || isAllCovering();
       allow write: if isAdmin();
+    }
+
+    match /liquidacionesProveedor/{liquidacionId} {
+      allow read: if isAdmin() || isAllCovering();
+      allow create: if isAdmin() && isValidLiquidacionProveedorCreate();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     match /auditorias/{auditId} {

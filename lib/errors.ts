@@ -84,6 +84,14 @@ export function getErrorMessage(
     return "Tenés que iniciar sesión para continuar.";
   }
 
+  if (normalized.includes("monto usd mayor a cero")) {
+    return "La liquidación debe tener un monto USD mayor a cero.";
+  }
+
+  if (normalized.includes("permisos para registrar liquidaciones")) {
+    return "No tenés permisos para registrar liquidaciones.";
+  }
+
   return fallback;
 }
 

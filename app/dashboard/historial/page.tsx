@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBajas } from "@/hooks/useBajas";
 import { useBranchFilter } from "@/contexts/BranchFilterContext";
 import { useIngresos } from "@/hooks/useIngresos";
+import { useLiquidacionesProveedor } from "@/hooks/useLiquidacionesProveedor";
 import { useProducts } from "@/hooks/useProducts";
 import { useSalesHistory } from "@/hooks/useSalesHistory";
 import { useTraslados } from "@/hooks/useTraslados";
@@ -35,6 +36,7 @@ import type {
   BajaStock,
   Branch,
   IngresoStock,
+  LiquidacionProveedor,
   Product,
   Sale,
   TrasladoStock,
@@ -47,7 +49,8 @@ type HistorialTipo =
   | "ingreso"
   | "baja"
   | "movimiento"
-  | "auditoria";
+  | "auditoria"
+  | "liquidacion";
 
 type TipoFilter = "" | HistorialTipo;
 
@@ -97,6 +100,7 @@ const tipoOptions = [
   { value: "baja", label: "Bajas" },
   { value: "movimiento", label: "Movimientos" },
   { value: "auditoria", label: "Auditorías" },
+  { value: "liquidacion", label: "Liquidaciones" },
 ];
 
 const tipoLabels: Record<HistorialTipo, string> = {
@@ -105,6 +109,7 @@ const tipoLabels: Record<HistorialTipo, string> = {
   baja: "Baja",
   movimiento: "Movimiento",
   auditoria: "Auditoría",
+  liquidacion: "Liquidación",
 };
 
 const tipoTones: Record<HistorialTipo, BadgeTone> = {
@@ -113,6 +118,7 @@ const tipoTones: Record<HistorialTipo, BadgeTone> = {
   baja: "error",
   movimiento: "warning",
   auditoria: "neutral",
+  liquidacion: "success",
 };
 
 function parseDateRange(filters: FiltersState): DateRange {
@@ -272,6 +278,18 @@ function auditToRow(audit: Audit): HistorialRow {
     createdBy: audit.createdBy,
     notas: audit.notas,
     auditItems: items,
+  };
+}
+
+function liquidacionToRow(liquidacion: LiquidacionProveedor): HistorialRow {
+  return {
+    id: liquidacion.id,
+    tipo: "liquidacion",
+    fecha: liquidacion.fecha,
+    detalle: "All Covering",
+    montoUSD: liquidacion.montoUSD,
+    createdBy: liquidacion.createdBy,
+    notas: liquidacion.notas,
   };
 }
 
@@ -549,6 +567,11 @@ function AdminHistoryContent() {
     useTraslados();
   const { audits, loading: auditsLoading, error: auditsError } = useAudits();
   const {
+    liquidaciones,
+    loading: liquidacionesLoading,
+    error: liquidacionesError,
+  } = useLiquidacionesProveedor();
+  const {
     byUid: usersByUid,
     loading: usersLoading,
     error: usersError,
@@ -579,6 +602,7 @@ function AdminHistoryContent() {
       ...bajas.map((baja) => bajaToRow(baja, productNames, productsById)),
       ...traslados.map((traslado) => trasladoToRow(traslado, productNames)),
       ...audits.map(auditToRow),
+      ...liquidaciones.map(liquidacionToRow),
     ];
 
     return allRows
@@ -590,6 +614,7 @@ function AdminHistoryContent() {
     fixedBranch,
     filters,
     ingresos,
+    liquidaciones,
     productNames,
     productsById,
     sales,
@@ -610,6 +635,7 @@ function AdminHistoryContent() {
     bajasError,
     trasladosError,
     auditsError,
+    liquidacionesError,
     usersError,
   ].filter((error): error is Error => Boolean(error));
 
@@ -620,6 +646,7 @@ function AdminHistoryContent() {
     bajasLoading ||
     trasladosLoading ||
     auditsLoading ||
+    liquidacionesLoading ||
     usersLoading;
 
   return (

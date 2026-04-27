@@ -90,6 +90,16 @@ export interface ProviderSnapshot {
   updatedAt?: Timestamp;
 }
 
+export interface LiquidacionProveedor {
+  id: string;
+  proveedor: "allcovering";
+  fecha: Timestamp;
+  montoUSD: number;
+  createdBy: string;
+  notas?: string;
+  createdAt?: Timestamp;
+}
+
 export interface IngresoStock {
   id: string;
   productId: string;
